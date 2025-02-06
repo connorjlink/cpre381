@@ -35,9 +35,11 @@ constant SLTU : natural := 9;
 constant FROM_RAM    : natural := 1;
 constant FROM_ALU    : natural := 2;
 constant FROM_NEXTIP : natural := 3;
+constant FROM_IMM    : natural := 4;
 
 -- Corresponding to each branch mode type (for effective address calculation)
 constant JAL  : natural := 1;
 constant JALR : natural := 2;
+constant BCC  : natural := 3;
 
 end package my_enums;

@@ -22,22 +22,25 @@ architecture mixed of cpu is
 
 component driver is
     port(
-        i_CLK       : in  std_logic;
-        i_RST       : in  std_logic;
-        i_Insn      : in  std_logic_vector(31 downto 0);
-        i_Branch    : in  std_logic;
-        o_MemWrite  : out std_logic;
-        o_RegWrite  : out std_logic;
-        o_RFSrc     : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
-        o_ALUSrc    : out std_logic; -- 0 = immediate, 1 = register
-        o_ALUOp     : out natural;
-        o_BGUOp     : out natural;
-        o_LSWidth   : out natural;
-        o_RD        : out std_logic_vector(4 downto 0);
-        o_RS1       : out std_logic_vector(4 downto 0);
-        o_RS2       : out std_logic_vector(4 downto 0);
-        o_Imm       : out std_logic_vector(31 downto 0);
-        o_Break     : out std_logic
+        i_CLK        : in  std_logic;
+        i_RST        : in  std_logic;
+        i_Insn       : in  std_logic_vector(31 downto 0);
+        i_Branch     : in  std_logic;
+        o_MemWrite   : out std_logic;
+        o_RegWrite   : out std_logic;
+        o_RFSrc      : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
+        o_ALUSrc     : out std_logic; -- 0 = immediate, 1 = register
+        o_ALUOp      : out natural;
+        o_BGUOp      : out natural;
+        o_LSWidth    : out natural;
+        o_RD         : out std_logic_vector(4 downto 0);
+        o_RS1        : out std_logic_vector(4 downto 0);
+        o_RS2        : out std_logic_vector(4 downto 0);
+        o_Imm        : out std_logic_vector(31 downto 0);
+        o_BranchMode : out natural;
+        o_Break      : out std_logic;
+        o_nInc2_Inc4 : out std_logic;
+        o_ipToALU    : out std_logic
     );
 end component;
 
@@ -128,6 +131,7 @@ signal s_DS2 : std_logic_vector(31 downto 0);
 signal s_eImm : std_logic_vector(31 downto 0);
 
 -- Signal to hold the ALU inputs and outputs
+signal s_aluA : std_logic_vector(31 downto 0);
 signal s_aluB : std_logic_vector(31 downto 0);
 signal s_aluF : std_logic_vector(31 downto 0);
 signal s_oCo : std_logic;
@@ -136,38 +140,52 @@ signal s_oCo : std_logic;
 signal s_rfD : std_logic_vector(31 downto 0);
 
 -- Signals to hold the control lines from the driver
-signal s_dMemWrite : std_logic;
-signal s_dRegWrite : std_logic;
-signal s_dRFSrc    : natural; -- 0 = ALU, 1 = memory, 2 = IP+4
-signal s_dALUSrc   : std_logic;
-signal s_dALUOp    : natural;
-signal s_dBGUOp    : natural;
-signal s_dLSWidth  : natural;
-signal s_dRD       : std_logic_vector(4 downto 0);
-signal s_dRS1      : std_logic_vector(4 downto 0);
-signal s_dRS2      : std_logic_vector(4 downto 0);
-signal s_dImm      : std_logic_vector(31 downto 0);
-signal s_iAddr     : std_logic_vector(31 downto 0);
-signal s_dLinkAddr : std_logic_vector(31 downto 0);
-signal s_dBreak    : std_logic;
-signal s_dAddr     : std_logic_vector(31 downto 0);
+signal s_dMemWrite   : std_logic;
+signal s_dRegWrite   : std_logic;
+signal s_dRFSrc      : natural; -- 0 = ALU, 1 = memory, 2 = IP+4
+signal s_dALUSrc     : std_logic;
+signal s_dALUOp      : natural;
+signal s_dBGUOp      : natural;
+signal s_dLSWidth    : natural;
+signal s_dRD         : std_logic_vector(4 downto 0);
+signal s_dRS1        : std_logic_vector(4 downto 0);
+signal s_dRS2        : std_logic_vector(4 downto 0);
+signal s_dImm        : std_logic_vector(31 downto 0);
+signal s_dBranchMode : natural;
+signal s_dBreak      : std_logic;
+signal s_dipToALU    : std_logic;
 
 -- Signals to handle the output of the BGU
 signal s_Branch : std_logic;
 
+-- Signal to hold the current instruction pointer
+signal s_ipAddr : std_logic_vector(31 downto 0);
+
+-- Signals to hold the data memory address pointer
+signal s_dAddr : std_logic_vector(31 downto 0);
+
 -- Signal to handle the shifted addresses
-signal s_iAddrShift : std_logic_vector(9 downto 0);
+signal s_ipAddrShift : std_logic_vector(9 downto 0);
 signal s_dAddrShift : std_logic_vector(9 downto 0);
 
 -- Signal to hold the modified clock
-signal s_gCLK : std_logic;
+signal s_gCLK  : std_logic;
 signal s_ngCLK : std_logic;
 
+-- Signals to hold the computed memory instruction address input to the IP
+signal s_effectiveAddr : std_logic_vector(31 downto 0);
+signal s_linkAddr      : std_logic_vector(31 downto 0);
+
+-- is the current instruction two or four bytes long?
+signal s_decnInc2_Inc4 : std_logic; 
 
 begin
 
-    --o_LinkAddr <= std_logic_vector(unsigned(s_ipAddr) + 4);
-    --s_effectiveAddr <= std_logic_vector(signed(s_ipAddr) + signed(o_Imm));
+    s_effectiveAddr <= std_logic_vector(signed(s_ipAddr) + signed(s_dImm)) when (s_dBranchMode = work.my_enums.JAL)  else
+                       std_logic_vector(signed(s_DS1) + signed(s_dImm))    when (s_dBranchMode = work.my_enums.JALR) else 
+                       std_logic_vector(signed(s_ipAddr) + signed(s_dImm)) when (s_dBranchMode = work.my_enums.BCC)  else
+                       32x"0";
+                       
     g_InstructionPointerUnit: ip
         generic MAP(
             ResetAddress => 32x"0"
@@ -175,13 +193,13 @@ begin
         port MAP(
             i_CLK        => i_CLK,
             i_RST        => i_RST,
-            i_Load       => i_Branch,
+            i_Load       => s_Branch,
             i_Addr       => s_effectiveAddr,
             i_nInc2_Inc4 => s_decnInc2_Inc4,
             --i_Stall      => s_dBreak, -- only relevant for pipelined CPU model
             i_Stall      => '0',
             o_Addr       => s_ipAddr,
-            o_LinkAddr   => o_LinkAddr
+            o_LinkAddr   => s_linkAddr
         );
 
     s_gCLK <= (not s_dBreak) and i_CLK;
@@ -196,7 +214,7 @@ begin
             o_Branch => s_Branch
         );
 
-    s_iAddrShift(9 downto 0) <= s_iAddr(11 downto 2);
+    s_ipAddrShift(9 downto 0) <= s_ipAddr(11 downto 2);
     s_dAddrShift(9 downto 0) <= s_dAddr(11 downto 2);
 
     g_CPUInstructionMemory: mem
@@ -207,7 +225,7 @@ begin
         port MAP(
             -- TODO: should this be posedge or negedge
             clk  => s_gCLK,
-            addr => s_iAddrShift,
+            addr => s_ipAddrShift,
             data => 32x"0", -- treated as read only memory
             we   => '0',
             q    => s_mInsn
@@ -230,31 +248,31 @@ begin
 
     g_CPUDriver: driver
         port MAP(
-            i_CLK       => s_gCLK,
-            i_RST       => i_RST,
-            i_Insn      => s_mInsn,
-            i_Branch    => s_Branch,
-            o_MemWrite  => s_dMemWrite,
-            o_RegWrite  => s_dRegWrite,
-            o_RFSrc     => s_dRFSrc,
-            o_ALUSrc    => s_dALUSrc,
-            o_ALUOp     => s_dALUOp,
-            o_BGUOp     => s_dBGUOp,
-            o_LSWidth   => s_dLSWidth, -- TODO: respect LS width
-            o_RD        => s_dRD,
-            o_RS1       => s_dRS1,
-            o_RS2       => s_dRS2, 
-            o_Imm       => s_dImm,
-            o_iAddr     => s_iAddr,
-            o_LinkAddr  => s_dLinkAddr,
-            o_Break     => s_dBreak
+            i_CLK        => s_gCLK,
+            i_RST        => i_RST,
+            i_Insn       => s_mInsn,
+            i_Branch     => s_Branch,
+            o_MemWrite   => s_dMemWrite,
+            o_RegWrite   => s_dRegWrite,
+            o_RFSrc      => s_dRFSrc,
+            o_ALUSrc     => s_dALUSrc,
+            o_ALUOp      => s_dALUOp,
+            o_BGUOp      => s_dBGUOp,
+            o_LSWidth    => s_dLSWidth, -- TODO: respect LS width
+            o_RD         => s_dRD,
+            o_RS1        => s_dRS1,
+            o_RS2        => s_dRS2, 
+            o_Imm        => s_dImm,
+            o_BranchMode => s_dBranchMode,
+            o_Break      => s_dBreak
         );
 
     s_dAddr <= s_aluF;
 
-    s_rfD <= s_mData      when (s_dRFSrc = work.my_enums.FROM_RAM)    else 
-             s_aluF       when (s_dRFSrc = work.my_enums.FROM_ALU)    else 
-             s_dLinkAddr  when (s_dRFSrc = work.my_enums.FROM_NEXTIP) else
+    s_rfD <= s_mData     when (s_dRFSrc = work.my_enums.FROM_RAM)    else 
+             s_aluF      when (s_dRFSrc = work.my_enums.FROM_ALU)    else 
+             s_linkAddr  when (s_dRFSrc = work.my_enums.FROM_NEXTIP) else
+             s_dImm      when (s_dRFSrc = work.my_enums.FROM_IMM)    else
              32x"0";
 
     g_CPURegisterFile: regfile
@@ -271,12 +289,15 @@ begin
             o_DS2 => s_DS2
         );
 
+    s_aluA <= s_ipAddr when (s_dipToALU = '1') else
+              s_DS1;
+
     s_aluB <= s_DS2 when (s_dALUSrc = '0') else
               s_dImm;
 
     g_CPUALU: alu
         port MAP(
-            i_A     => s_DS1,
+            i_A     => s_aluA,
             i_B     => s_aluB,
             i_ALUOp => s_dALUOp,
             o_F     => s_aluF,

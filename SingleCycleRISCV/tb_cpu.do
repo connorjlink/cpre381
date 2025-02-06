@@ -17,7 +17,8 @@ set NumericStdNoWarnings 0
 #mem load -infile dmem.hex -format hex /tb_cpu/DUT0/g_CPUDataMemory
 #mem load -infile imem.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 #mem load -infile test_fibonacci.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
-mem load -infile jump_and_link_test.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+#mem load -infile jump_and_link_test.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+mem load -infile test_all_instructions.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 mem load -infile zero.hex -format hex /tb_cpu/DUT0/g_CPURegisterFile/s_Rx
 
 # Setup the wave form with useful signals
@@ -26,6 +27,7 @@ mem load -infile zero.hex -format hex /tb_cpu/DUT0/g_CPURegisterFile/s_Rx
 # First, add a helpful header label.
 add wave -noupdate -divider {Standard Inputs}
 add wave -noupdate -label CLK /tb_cpu/CLK
+add wave -noupdate -label CLK /tb_cpu/DUT0/s_gCLK
 add wave -noupdate -label reset /tb_cpu/reset
 
 # Add data inputs that are specific to this design. These are the ones set during our test cases.
@@ -41,13 +43,13 @@ add wave -noupdate -label reset /tb_cpu/reset
 
 # Add data outputs that are specific to this design. These are the ones that we'll check for correctness.
 add wave -noupdate -divider {Data Outputs}
-add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_iAddr
-add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_iAddrShift
+add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_ipAddr
+add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_ipAddrShift
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_mInsn
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_dAddr
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_dAddrShift
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_mData
-add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_Break
+add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_dBreak
 #add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUALU/i_ALUOp
 #add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUALU/o_F
 #add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPURegisterFile/s_Rx

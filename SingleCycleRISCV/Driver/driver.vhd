@@ -16,23 +16,25 @@ use work.my_enums.all;
 
 entity driver is
     port(
-        i_CLK       : in  std_logic;
-        i_RST       : in  std_logic;
-        i_Insn      : in  std_logic_vector(31 downto 0);
-        i_Branch    : in  std_logic;
-        o_MemWrite  : out std_logic;
-        o_RegWrite  : out std_logic;
-        o_RFSrc     : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
-        o_ALUSrc    : out std_logic; -- 0 = register, 1 = immediate
-        o_ALUOp     : out natural;
-        o_BGUOp     : out natural;
-        o_LSWidth   : out natural;
-        o_RD        : out std_logic_vector(4 downto 0);
-        o_RS1       : out std_logic_vector(4 downto 0);
-        o_RS2       : out std_logic_vector(4 downto 0);
-        o_Imm       : out std_logic_vector(31 downto 0);
-        o_BranchMode : out natural; -- 0 = jal, 1 = jalr
-        o_Break     : out std_logic
+        i_CLK        : in  std_logic;
+        i_RST        : in  std_logic;
+        i_Insn       : in  std_logic_vector(31 downto 0);
+        i_Branch     : in  std_logic;
+        o_MemWrite   : out std_logic;
+        o_RegWrite   : out std_logic;
+        o_RFSrc      : out natural; 
+        o_ALUSrc     : out std_logic; -- 0 = register, 1 = immediate
+        o_ALUOp      : out natural;
+        o_BGUOp      : out natural;
+        o_LSWidth    : out natural;
+        o_RD         : out std_logic_vector(4 downto 0);
+        o_RS1        : out std_logic_vector(4 downto 0);
+        o_RS2        : out std_logic_vector(4 downto 0);
+        o_Imm        : out std_logic_vector(31 downto 0);
+        o_BranchMode : out natural;
+        o_Break      : out std_logic;
+        o_nInc2_Inc4 : out std_logic;
+        o_ipToALU    : out std_logic
     );
 end driver;
 
@@ -65,12 +67,10 @@ component decoder is
         o_sImm   : out std_logic_vector(11 downto 0);
         o_bImm   : out std_logic_vector(12 downto 0);
         o_uImm   : out std_logic_vector(31 downto 12);
-        o_jImm   : out std_logic_vector(20 downto 0)
+        o_jImm   : out std_logic_vector(20 downto 0);
+        o_hImm   : out std_logic_vector(4 downto 0)
     );
 end component;
-
--- Signal to hold the current instruction pointer
-signal s_ipAddr : std_logic_vector(31 downto 0);
 
 -- Signals to hold the results from the decoder
 signal s_decOpcode : std_logic_vector(6 downto 0);
@@ -81,9 +81,7 @@ signal s_decsImm   : std_logic_vector(11 downto 0);
 signal s_decbImm   : std_logic_vector(12 downto 0);
 signal s_decuImm   : std_logic_vector(31 downto 12);
 signal s_decjImm   : std_logic_vector(20 downto 0);
-
-signal s_decnInc2_Inc4 : std_logic; -- is the current instruction two or four bytes long?
-signal s_Break         : std_logic;
+signal s_dechImm   : std_logic_vector(4 downto 0);
 
 -- Signals to hold the results from the immediate extenders
 signal s_extiImm : std_logic_vector(31 downto 0);
@@ -91,9 +89,7 @@ signal s_extsImm : std_logic_vector(31 downto 0);
 signal s_extbImm : std_logic_vector(31 downto 0);
 signal s_extuImm : std_logic_vector(31 downto 0);
 signal s_extjImm : std_logic_vector(31 downto 0);
-
--- Signals to hold the computed memory instruction address input to the IP
-signal s_effectiveAddr : std_logic_vector(31 downto 0);
+signal s_exthImm : std_logic_vector(31 downto 0);
 
 -- Signal to hold the immediate extension information
 signal s_nZeroSign : std_logic;
@@ -101,11 +97,9 @@ signal s_nZeroSign : std_logic;
 
 begin
 
-    o_Break <= s_Break;
-
     -- 4-byte instructions are indicated by a 11 in the two least-significant bits of the opcode
-    s_decnInc2_Inc4 <= '1' when s_decOpcode(1 downto 0) = 2b"11" else
-                       '0';
+    o_nInc2_Inc4 <= '1' when s_decOpcode(1 downto 0) = 2b"11" else
+                    '0';
 
     g_DriverExtenderI: ext -- I-Format
         generic MAP(
@@ -155,6 +149,10 @@ begin
             o_Q          => s_extjImm
         );
 
+    -- "H"-format for shift immediate
+    s_exthImm(31 downto 5) <= 27x"0";
+    s_exthImm(4 downto 0) <= s_dechImm;
+
 
     g_InstructionDecoder: decoder
         port MAP(
@@ -171,56 +169,56 @@ begin
             o_sImm   => s_decsImm,
             o_bImm   => s_decbImm,
             o_uImm   => s_decuImm,
-            o_jImm   => s_decjImm
+            o_jImm   => s_decjImm,
+            o_hImm   => s_dechImm
         );
 
     process(i_RST, i_Insn, s_decOpcode, s_decFunc3, s_decFunc7, 
             s_extiImm, s_extsImm, s_extbImm, s_extuImm, s_extjImm)
-        variable v_Break     : std_logic;
-        variable v_nZeroSign : std_logic;
-        variable v_MemWrite  : std_logic;
-        variable v_RegWrite  : std_logic;
-        variable v_ALUSrc    : std_logic;
-        variable v_RFSrc     : natural; -- 0 = memory, 1 = ALU, 2 = next IP
-        variable v_ALUOp     : natural;
-        variable v_BGUOp     : natural;
-        variable v_LSWidth   : natural;
-        variable v_Imm       : std_logic_vector(31 downto 0);
+        variable v_Break      : std_logic;
+        variable v_nZeroSign  : std_logic;
+        variable v_MemWrite   : std_logic;
+        variable v_RegWrite   : std_logic;
+        variable v_ALUSrc     : std_logic;
+        variable v_RFSrc      : natural; -- 0 = memory, 1 = ALU, 2 = next IP
+        variable v_ALUOp      : natural;
+        variable v_BGUOp      : natural;
+        variable v_LSWidth    : natural;
+        variable v_Imm        : std_logic_vector(31 downto 0);
+        variable v_BranchMode : natural;
+        variable v_ipToALU    : std_logic;
     begin 
         if i_RST = '0' then
-            v_Break     := '0';
-            v_nZeroSign := '1'; -- default case is sign extension
-            v_MemWrite  := '0';
-            v_RegWrite  := '0';
-            v_RFSrc     := 0;
-            v_ALUSrc    := '0';
-            v_ALUOp     := 0;
-            v_BGUOp     := 0;
-            v_Imm       := 32x"0";
-            v_EffectiveAddr := 32x"0";
+            v_Break      := '0';
+            v_nZeroSign  := '1'; -- default case is sign extension
+            v_MemWrite   := '0';
+            v_RegWrite   := '0';
+            v_RFSrc      := 0;
+            v_ALUSrc     := '0';
+            v_ALUOp      := 0;
+            v_BGUOp      := 0;
+            v_Imm        := 32x"0";
+            v_BranchMode := 0;
+            v_ipToALU    := '0';
 
             case s_decOpcode is 
                 -- TODO: linking jump
                 when 7b"1101111" => -- J-Format
-                    -- jal
-                    -- rd <= linkAddr
+                    -- jal    - rd <= linkAddr
                     v_Imm := s_extjImm;
                     v_BGUOp := work.my_enums.J;
                     v_RegWrite := '1';
                     v_RFSrc := work.my_enums.FROM_NEXTIP;
-                    v_EffectiveAddr := std_logic_vector(signed(s_ipAddr) + signed(o_Imm));
-                    -- s_effectiveAddr <= std_logic_vector(signed(s_ipAddr) + signed(o_Imm));
+                    v_BranchMode := work.my_enums.JAL;
                     report "jal" severity note;
 
                 when 7b"1100111" => -- I-Format
-                    -- jalr - func3=000
-                    -- rd <= linkAddr
+                    -- jalr - func3=000 - rd <= linkAddr
                     v_Imm := s_extiImm;
                     v_BGUOp := work.my_enums.J;
                     v_RegWrite := '1';
                     v_RFSrc := work.my_enums.FROM_NEXTIP;
-                    v_EffectiveAddr := std_logic_vector(signed(s_DS1) + signed(o_Imm));
-                    -- s_effectiveAddr <= std_logic_vector(signed(s_RS1) + signed(o_Imm))
+                    v_BranchMode := work.my_enums.JALR;
                     report "jalr" severity note;
 
                 when 7b"0010011" => -- I-format
@@ -246,6 +244,7 @@ begin
                         when 3b"001" =>
                             -- slli  - 001
                             v_ALUOp := work.my_enums.BSLL;
+                            v_Imm := s_exthImm; -- override for shamt
                             report "slli" severity note;
 
                         when 3b"010" => 
@@ -268,11 +267,13 @@ begin
                             if s_decFunc7 = 7b"0100000" then
                                 -- srai - 101 + 0100000
                                 v_ALUOp := work.my_enums.BSRA;
+                                v_Imm := s_exthImm; -- override for shamt
                                 report "srai" severity note;
 
                             else
                                 -- srli - 101 + 0000000
                                 v_ALUOp := work.my_enums.BSRL;
+                                v_Imm := s_exthImm; -- override for shamt
                                 report "srli" severity note;
                             
                             end if;
@@ -451,6 +452,9 @@ begin
 
                 when 7b"1100011" => -- B-Format
                     v_Imm := s_extbImm;
+                    -- v_ALUSrc := '1';
+                    -- v_ipToALU := '1';
+                    v_BranchMode := work.my_enums.BCC;
 
                     case s_decFunc3 is 
                         when 3b"000" =>
@@ -489,15 +493,19 @@ begin
                     end case;
 
                 when 7b"0110111" => -- U-Format
-                    -- lui
+                    -- lui   - rd = imm << 12
                     v_Imm := s_extuImm;
-                    -- TODO:
+                    v_RFSrc := work.my_enums.FROM_IMM;
+                    v_RegWrite := '1';
                     report "lui" severity note;
 
                 when 7b"0010111" => -- U-Format
-                    -- auipc
+                    -- auipc - rd = pc + (imm << 12)
                     v_Imm := s_extuImm;
-                    -- TODO:
+                    v_RFSrc := work.my_enums.FROM_ALU;
+                    v_ALUSrc := '1';
+                    v_ipToALU := '1';
+                    v_RegWrite := '1';
                     report "auipc" severity note;
 
                 -- NOTE: `0001111` - "fence" not required by RV32I
@@ -508,29 +516,31 @@ begin
                     report "Illegal Instruction" severity error;
             end case;
         else
-            v_Break     := '0';
-            v_nZeroSign := '1'; -- default case is sign extension
-            v_MemWrite  := '0';
-            v_RegWrite  := '0';
-            v_RFSrc     := 0;
-            v_ALUSrc    := '0';
-            v_ALUOp     := 0;
-            v_BGUOp     := 0;
-            v_Imm       := 32x"0";
-            v_EffectiveAddr := 32x"0"; -- TODO: reset address
+            v_Break      := '0';
+            v_nZeroSign  := '1'; -- default case is sign extension
+            v_MemWrite   := '0';
+            v_RegWrite   := '0';
+            v_RFSrc      := 0;
+            v_ALUSrc     := '0';
+            v_ALUOp      := 0;
+            v_BGUOp      := 0;
+            v_Imm        := 32x"0";
+            v_BranchMode := 0;
+            v_ipToALU    := '0';
         end if;
 
-        s_effectiveAddr <= v_EffectiveAddr;
-        s_Break     <= v_Break;    
-        s_nZeroSign <= v_nZeroSign;
-        o_MemWrite  <= v_MemWrite; 
-        o_RegWrite  <= v_RegWrite; 
-        o_RFSrc     <= v_RFSrc;    
-        o_ALUSrc    <= v_ALUSrc;   
-        o_ALUOp     <= v_ALUOp;    
-        o_BGUOp     <= v_BGUOp; 
-        o_LSWidth   <= v_LSWidth;   
-        o_Imm       <= v_Imm;      
+        o_Break      <= v_Break;
+        s_nZeroSign  <= v_nZeroSign;
+        o_MemWrite   <= v_MemWrite; 
+        o_RegWrite   <= v_RegWrite; 
+        o_RFSrc      <= v_RFSrc;    
+        o_ALUSrc     <= v_ALUSrc;   
+        o_ALUOp      <= v_ALUOp;    
+        o_BGUOp      <= v_BGUOp; 
+        o_LSWidth    <= v_LSWidth;   
+        o_Imm        <= v_Imm;  
+        o_BranchMode <= v_BranchMode;   
+        o_ipToALU    <= v_ipToALU; 
     end process;
 
 end mixed;
