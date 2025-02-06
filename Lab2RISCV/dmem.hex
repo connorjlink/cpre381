@@ -1,0 +1,14 @@
+ffffffff // Loads at address 0
+00000002
+fffffffd
+00000004
+00000005
+00000006
+fffffff9
+fffffff8
+00000009
+fffffff6 // Loads at address 9
+
+@15
+0000a000 // Loads at address 0x15
+0000b000 // Loads at address 0x16
