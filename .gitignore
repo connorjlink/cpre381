@@ -3,3 +3,5 @@
 **/.smbdelete**
 **/.vscode
 **/._**
+*.wlf
+**/work/

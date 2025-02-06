@@ -1,1 +1,0 @@
-C:/questasim64_2024.2/win64/VisualizerRls/bin/viscom.exe -nolock -quiet -jmem_size 18432288 work.tb_cpu -quiet -auto_acc_if_foreign -work work +acc -allow_unnamed -o _opt4 -id 1-005056b6f545-67a4361f-29f-3294 +__design_bin_path+X:/cpre381/singleCycleRISCV +__betafsm
