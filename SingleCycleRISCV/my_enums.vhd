@@ -31,4 +31,13 @@ constant BSRA : natural := 7;
 constant SLT  : natural := 8;
 constant SLTU : natural := 9;
 
+-- Corresponding to each RF source command
+constant FROM_RAM    : natural := 1;
+constant FROM_ALU    : natural := 2;
+constant FROM_NEXTIP : natural := 3;
+
+-- Corresponding to each branch mode type (for effective address calculation)
+constant JAL  : natural := 1;
+constant JALR : natural := 2;
+
 end package my_enums;

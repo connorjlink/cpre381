@@ -16,7 +16,8 @@ set NumericStdNoWarnings 0
 
 #mem load -infile dmem.hex -format hex /tb_cpu/DUT0/g_CPUDataMemory
 #mem load -infile imem.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
-mem load -infile test_fibonacci.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+#mem load -infile test_fibonacci.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+mem load -infile jump_and_link_test.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 mem load -infile zero.hex -format hex /tb_cpu/DUT0/g_CPURegisterFile/s_Rx
 
 # Setup the wave form with useful signals
@@ -50,6 +51,7 @@ add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/s_Break
 #add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUALU/i_ALUOp
 #add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUALU/o_F
 #add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPURegisterFile/s_Rx
+add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/*
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPURegisterFile/*
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUDriver/*
 add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUALU/*

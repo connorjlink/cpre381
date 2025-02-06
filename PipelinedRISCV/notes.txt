@@ -1,0 +1,27 @@
+When implementing a stall signal in a pipelined CPU, you typically need to ensure that multiple parts of the pipeline handle it correctly. Here’s how the stall signal should connect to different parts of the CPU:
+	1.	Instruction Fetch (IF) Stage:
+	•	If a stall is required, the Program Counter (PC) should not advance to the next instruction.
+	•	The instruction memory or instruction fetch logic should not provide a new instruction.
+	2.	Instruction Decode (ID) Stage:
+	•	The pipeline registers between IF and ID should not be updated (i.e., hold their current values).
+	•	If the stall is due to a dependency (such as waiting for a result from a previous instruction), the decode stage may need to insert a NOP (No Operation) instruction to keep the pipeline aligned.
+	3.	Execute (EX) Stage and Beyond:
+	•	Usually, the EX, MEM, and WB stages continue operating as normal unless the stall affects them.
+	•	If a stall is needed due to a hazard detection unit (e.g., data hazards, control hazards), ensure that pipeline forwarding mechanisms are correctly working.
+	4.	Pipeline Registers:
+	•	The stall signal should freeze updates to the pipeline registers for the IF/ID and ID/EX stages but allow the later stages (EX/MEM, MEM/WB) to continue.
+	5.	Hazard Detection Unit:
+	•	This unit detects hazards (such as load-use dependencies) and generates the stall signal.
+	•	In some designs, it may insert a bubble (NOP) instead of stalling everything.
+	6.	Flush Logic (for branch mispredictions or exceptions):
+	•	Some stalls might be required due to incorrect branch predictions. In such cases, you may need to flush incorrect instructions and restart the fetch process.
+
+Summary
+
+The stall signal should:
+	•	Prevent the PC from advancing.
+	•	Prevent the IF/ID pipeline register from updating.
+	•	Allow other stages to proceed unless they also need to be stalled.
+	•	Potentially insert NOPs to maintain correct instruction sequencing.
+
+Would you like a specific example or diagram of how this connects?

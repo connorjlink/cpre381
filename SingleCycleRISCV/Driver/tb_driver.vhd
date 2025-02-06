@@ -34,7 +34,7 @@ component driver is
         i_Branch    : in  std_logic;
         o_MemWrite  : out std_logic;
         o_RegWrite  : out std_logic;
-        o_RFSrc     : out std_logic; -- 0 = ALU, 1 = memory
+        o_RFSrc     : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
         o_ALUSrc    : out std_logic; -- 0 = register, 1 = immediate
         o_ALUOp     : out natural;
         o_BGUOp     : out natural;
@@ -44,6 +44,7 @@ component driver is
         o_RS2       : out std_logic_vector(4 downto 0);
         o_Imm       : out std_logic_vector(31 downto 0);
         o_iAddr     : out std_logic_vector(31 downto 0);
+        o_LinkAddr  : out std_logic_vector(31 downto 0);
         o_Break     : out std_logic
     );
 end component;
@@ -56,7 +57,7 @@ signal s_iInsn     : std_logic_vector(31 downto 0) := 32x"0";
 signal s_iBranch   : std_logic := '0';
 signal s_oMemWrite : std_logic;
 signal s_oRegWrite : std_logic;
-signal s_oRFSrc    : std_logic;
+signal s_oRFSrc    : natural;
 signal s_oALUSrc   : std_logic;
 signal s_oALUOp    : natural;
 signal s_oBGUOp    : natural;
@@ -66,6 +67,7 @@ signal s_oRS1      : std_logic_vector(4 downto 0);
 signal s_oRS2      : std_logic_vector(4 downto 0);
 signal s_oImm      : std_logic_vector(31 downto 0);
 signal s_oiAddr    : std_logic_vector(31 downto 0);
+signal s_oLinkAddr : std_logic_Vector(31 downto 0);
 signal s_oBreak    : std_logic;
 
 begin
@@ -89,6 +91,7 @@ DUTO: driver
         o_RS2      => s_oRS2,
         o_Imm      => s_oImm,
         o_iAddr    => s_oiAddr,
+        o_LinkAddr => s_oLinkAddr,
         o_Break    => s_oBreak
     );
 

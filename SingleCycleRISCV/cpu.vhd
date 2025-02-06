@@ -28,7 +28,7 @@ component driver is
         i_Branch    : in  std_logic;
         o_MemWrite  : out std_logic;
         o_RegWrite  : out std_logic;
-        o_RFSrc     : out std_logic; -- 0 = ALU, 1 = registers
+        o_RFSrc     : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
         o_ALUSrc    : out std_logic; -- 0 = immediate, 1 = register
         o_ALUOp     : out natural;
         o_BGUOp     : out natural;
@@ -37,7 +37,6 @@ component driver is
         o_RS1       : out std_logic_vector(4 downto 0);
         o_RS2       : out std_logic_vector(4 downto 0);
         o_Imm       : out std_logic_vector(31 downto 0);
-        o_iAddr     : out std_logic_vector(31 downto 0);
         o_Break     : out std_logic
     );
 end component;
@@ -100,6 +99,23 @@ component regfile is
     );
 end component;
 
+component ip is
+    generic(
+        -- Signal to hold the default data page address (according to RARS at least)
+        ResetAddress : std_logic_vector(31 downto 0) := 32x"00400000"
+    );
+    port(
+        i_CLK        : in  std_logic;
+        i_RST        : in  std_logic;
+        i_Load       : in  std_logic;
+        i_Addr       : in  std_logic_vector(31 downto 0);
+        i_nInc2_Inc4 : in  std_logic; -- 0 = inc2, 1 = inc4
+        i_Stall      : in  std_logic;
+        o_Addr       : out std_logic_vector(31 downto 0);
+        o_LinkAddr   : out std_logic_vector(31 downto 0)
+    );
+end component;
+
 -- Signals to hold memory inputs and outputs
 signal s_mInsn : std_logic_vector(31 downto 0);
 signal s_mData : std_logic_vector(31 downto 0);
@@ -122,7 +138,7 @@ signal s_rfD : std_logic_vector(31 downto 0);
 -- Signals to hold the control lines from the driver
 signal s_dMemWrite : std_logic;
 signal s_dRegWrite : std_logic;
-signal s_dRFSrc    : std_logic;
+signal s_dRFSrc    : natural; -- 0 = ALU, 1 = memory, 2 = IP+4
 signal s_dALUSrc   : std_logic;
 signal s_dALUOp    : natural;
 signal s_dBGUOp    : natural;
@@ -132,7 +148,8 @@ signal s_dRS1      : std_logic_vector(4 downto 0);
 signal s_dRS2      : std_logic_vector(4 downto 0);
 signal s_dImm      : std_logic_vector(31 downto 0);
 signal s_iAddr     : std_logic_vector(31 downto 0);
-signal s_Break     : std_logic;
+signal s_dLinkAddr : std_logic_vector(31 downto 0);
+signal s_dBreak    : std_logic;
 signal s_dAddr     : std_logic_vector(31 downto 0);
 
 -- Signals to handle the output of the BGU
@@ -142,16 +159,37 @@ signal s_Branch : std_logic;
 signal s_iAddrShift : std_logic_vector(9 downto 0);
 signal s_dAddrShift : std_logic_vector(9 downto 0);
 
--- Signal to hold the negated clock
-signal s_nCLK : std_logic;
+-- Signal to hold the modified clock
+signal s_gCLK : std_logic;
+signal s_ngCLK : std_logic;
+
 
 begin
 
-    s_nCLK <= not i_CLK;
+    --o_LinkAddr <= std_logic_vector(unsigned(s_ipAddr) + 4);
+    --s_effectiveAddr <= std_logic_vector(signed(s_ipAddr) + signed(o_Imm));
+    g_InstructionPointerUnit: ip
+        generic MAP(
+            ResetAddress => 32x"0"
+        )
+        port MAP(
+            i_CLK        => i_CLK,
+            i_RST        => i_RST,
+            i_Load       => i_Branch,
+            i_Addr       => s_effectiveAddr,
+            i_nInc2_Inc4 => s_decnInc2_Inc4,
+            --i_Stall      => s_dBreak, -- only relevant for pipelined CPU model
+            i_Stall      => '0',
+            o_Addr       => s_ipAddr,
+            o_LinkAddr   => o_LinkAddr
+        );
+
+    s_gCLK <= (not s_dBreak) and i_CLK;
+    s_ngCLK <= not s_gCLK;
 
     g_CPUBranchUnit: bgu
         port MAP(
-            i_CLK => i_CLK,
+            i_CLK => s_gCLK,
             i_DS1 => s_DS1,
             i_DS2 => s_DS2,
             i_BGUOp => s_dBGUOp,
@@ -168,7 +206,7 @@ begin
         )
         port MAP(
             -- TODO: should this be posedge or negedge
-            clk  => i_CLK,
+            clk  => s_gCLK,
             addr => s_iAddrShift,
             data => 32x"0", -- treated as read only memory
             we   => '0',
@@ -182,8 +220,8 @@ begin
         )
         port MAP(
             -- TODO: should this be posedge or negedge
-            -- clk  => i_CLK, 
-            clk => s_nCLK,
+            -- clk  => s_gCLK, 
+            clk => s_gCLK,
             addr => s_dAddrShift,
             data => s_DS2,
             we   => s_dMemWrite,
@@ -192,7 +230,7 @@ begin
 
     g_CPUDriver: driver
         port MAP(
-            i_CLK       => i_CLK,
+            i_CLK       => s_gCLK,
             i_RST       => i_RST,
             i_Insn      => s_mInsn,
             i_Branch    => s_Branch,
@@ -202,24 +240,27 @@ begin
             o_ALUSrc    => s_dALUSrc,
             o_ALUOp     => s_dALUOp,
             o_BGUOp     => s_dBGUOp,
-            o_LSWidth   => s_dLSWidth,
+            o_LSWidth   => s_dLSWidth, -- TODO: respect LS width
             o_RD        => s_dRD,
             o_RS1       => s_dRS1,
             o_RS2       => s_dRS2, 
             o_Imm       => s_dImm,
             o_iAddr     => s_iAddr,
-            o_Break     => s_Break
+            o_LinkAddr  => s_dLinkAddr,
+            o_Break     => s_dBreak
         );
 
     s_dAddr <= s_aluF;
 
-    s_rfD <= s_mData when (s_dRFSrc = '1') else
-             s_aluF;
+    s_rfD <= s_mData      when (s_dRFSrc = work.my_enums.FROM_RAM)    else 
+             s_aluF       when (s_dRFSrc = work.my_enums.FROM_ALU)    else 
+             s_dLinkAddr  when (s_dRFSrc = work.my_enums.FROM_NEXTIP) else
+             32x"0";
 
     g_CPURegisterFile: regfile
         port MAP(
-            i_CLK => s_nCLK,
-            --i_CLK => i_CLK,
+            i_CLK => s_ngCLK,
+            --i_CLK => s_gCLK, -- needs to be written on the negedge
             i_RST => i_RST,
             i_RS1 => s_dRS1,
             i_RS2 => s_dRS2,

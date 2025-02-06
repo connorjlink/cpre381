@@ -31,13 +31,16 @@ component ip is
         -- Signal to hold the default data page address (according to RARS at least)
         ResetAddress : std_logic_vector(31 downto 0) := 32x"00400000"
     );
-    port(i_CLK        : in  std_logic;
-         i_RST        : in  std_logic;
-         i_Load       : in  std_logic;
-         i_Addr       : in  std_logic_vector(31 downto 0);
-         i_nInc2_Inc4 : in  std_logic; -- 0 = inc2, 1 = inc4
-         i_Stall      : in  std_logic;
-         o_Addr       : out std_logic_vector(31 downto 0));
+    port(
+        i_CLK        : in  std_logic;
+        i_RST        : in  std_logic;
+        i_Load       : in  std_logic;
+        i_Addr       : in  std_logic_vector(31 downto 0);
+        i_nInc2_Inc4 : in  std_logic; -- 0 = inc2, 1 = inc4
+        i_Stall      : in  std_logic;
+        o_Addr       : out std_logic_vector(31 downto 0);
+        o_LinkAddr   : out std_logic_vector(31 downto 0)
+    );
 end component;
 
 -- Create helper signals
@@ -49,18 +52,22 @@ signal s_iAddr       : std_logic_vector(31 downto 0) := 32x"0";
 signal s_inInc2_Inc4 : std_logic := '0';
 signal s_iStall      : std_logic := '0';
 signal s_oAddr       : std_logic_vector(31 downto 0);
+signal s_oLinkAddr   : std_logic_vector(31 downto 0);
 
 begin
 
 -- Instantiate the module under test
 DUTO: ip
-    port MAP(i_CLK        => CLK,
-             i_RST        => reset,
-             i_Load       => s_iLoad,
-             i_Addr       => s_iAddr,
-             i_nInc2_Inc4 => s_inInc2_Inc4,
-             i_Stall      => s_iStall,
-             o_Addr       => s_oAddr);
+    port MAP(
+        i_CLK        => CLK,
+        i_RST        => reset,
+        i_Load       => s_iLoad,
+        i_Addr       => s_iAddr,
+        i_nInc2_Inc4 => s_inInc2_Inc4,
+        i_Stall      => s_iStall,
+        o_Addr       => s_oAddr,
+        o_LinkAddr   => s_oLinkAddr
+    );
 
 --This first process is to setup the clock for the test bench
 P_CLK: process

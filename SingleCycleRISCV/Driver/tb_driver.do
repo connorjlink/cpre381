@@ -44,6 +44,7 @@ add wave -noupdate -radix hexadecimal /tb_driver/s_oRS1
 add wave -noupdate -radix hexadecimal /tb_driver/s_oRS2
 add wave -noupdate -radix hexadecimal /tb_driver/s_oImm
 add wave -noupdate -radix hexadecimal /tb_driver/s_oiAddr
+add wave -noupdate -radix hexadecimal /tb_driver/s_oLinkAddr
 add wave -noupdate -radix binary /tb_driver/s_oBreak
 
 # Add the standard, non-data clock and reset input signals again.

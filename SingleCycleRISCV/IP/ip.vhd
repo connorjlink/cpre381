@@ -25,7 +25,8 @@ entity ip is
         i_Addr       : in  std_logic_vector(31 downto 0);
         i_nInc2_Inc4 : in  std_logic; -- 0 = inc2, 1 = inc4
         i_Stall      : in  std_logic;
-        o_Addr       : out std_logic_vector(31 downto 0)
+        o_Addr       : out std_logic_vector(31 downto 0);
+        o_LinkAddr   : out std_logic_vector(31 downto 0)
     );
 end ip;
 
@@ -61,7 +62,7 @@ signal s_upAddr : std_logic_vector(31 downto 0);
 begin
 
     s_ipD <= ResetAddress when i_RST  = '1' else
-             i_Addr         when i_Load = '1' else
+             i_Addr       when i_Load = '1' else
              s_upAddr;
 
     -- Upcounting is disabled when we need a pipeline stall
@@ -88,5 +89,6 @@ begin
                  o_Co => open);
 
     o_Addr <= s_ipAddr;
+    o_LinkAddr <= s_upAddr;
     
 end mixed;
