@@ -18,7 +18,9 @@ set NumericStdNoWarnings 0
 #mem load -infile imem.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 #mem load -infile test_fibonacci.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 #mem load -infile jump_and_link_test.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
-mem load -infile test_all_instructions.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+#mem load -infile test_all_instructions.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+#mem load -infile powers_of_two_test.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+mem load -infile simple_branch.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 mem load -infile zero.hex -format hex /tb_cpu/DUT0/g_CPURegisterFile/s_Rx
 
 # Setup the wave form with useful signals

@@ -10,6 +10,11 @@
 ##              the waveform and runs the simulation.
 #########################################################################
 
+quit -sim
+vcom -2008 -work work *.vhd
+vsim -voptargs=+acc tb_dmem
+mem load -infile dmem.hex -format hex /tb_dmem/dmem/ram
+
 # Setup the wave form with useful signals
 
 # Add the standard, non-data clock and reset input signals.

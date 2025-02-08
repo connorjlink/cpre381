@@ -49,7 +49,7 @@ signal s_oQ  : std_logic_vector(31 downto 0);
 begin
 
 -- Instantiate the module under test
-DUT0: mem
+dmem: mem
     generic MAP(DATA_WIDTH => DATA_WIDTH,
                 ADDR_WIDTH => ADDR_WIDTH)
 	port MAP(clk  => CLK,
@@ -98,7 +98,7 @@ begin
     -- Test Case 2:
     s_iA <= b"0000000001";
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFE
+    -- Expect: s_oQ to be $00000002
 
     -- Test Case 3:
     s_iA <= b"0000000010";
@@ -108,17 +108,17 @@ begin
     -- Test Case 4:
     s_iA <= b"0000000011";
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFC
+    -- Expect: s_oQ to be $00000004
 
     -- Test Case 5:
     s_iA <= b"0000000100";
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFB
+    -- Expect: s_oQ to be $00000005
 
     -- Test Case 6:
     s_iA <= b"0000000101";
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFA
+    -- Expect: s_oQ to be $00000006
 
     -- Test Case 7:
     s_iA <= b"0000000110";
@@ -133,7 +133,7 @@ begin
     -- Test Case 9:
     s_iA <= b"0000001000";
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFF7
+    -- Expect: s_oQ to be $00000009
 
     -- Test Case 10:
     s_iA <= b"0000001001";
@@ -151,10 +151,10 @@ begin
 
     -- Test Case 12:
     s_iA  <= b"0100000001";
-    s_iD  <= x"FFFFFFFE";
+    s_iD  <= x"00000002";
     s_iWE <= '1';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFE
+    -- Expect: s_oQ to be $00000002
 
     -- Test Case 13:
     s_iA  <= b"0100000010";
@@ -165,24 +165,24 @@ begin
 
     -- Test Case 14:
     s_iA  <= b"0100000011";
-    s_iD  <= x"FFFFFFFC";
+    s_iD  <= x"00000004";
     s_iWE <= '1';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFC
+    -- Expect: s_oQ to be $00000004
 
     -- Test Case 15:
     s_iA  <= b"0100000100";
-    s_iD  <= x"FFFFFFFB";
+    s_iD  <= x"00000005";
     s_iWE <= '1';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFB
+    -- Expect: s_oQ to be $00000005
 
     -- Test Case 16:
     s_iA  <= b"0100000101";
-    s_iD  <= x"FFFFFFFA";
+    s_iD  <= x"00000006";
     s_iWE <= '1';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFA
+    -- Expect: s_oQ to be $00000006
 
     -- Test Case 17:
     s_iA  <= b"0100000110";
@@ -200,10 +200,10 @@ begin
 
     -- Test Case 19:
     s_iA  <= b"0100001000";
-    s_iD  <= x"FFFFFFF7";
+    s_iD  <= x"00000009";
     s_iWE <= '1';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFF7
+    -- Expect: s_oQ to be $00000009
 
     -- Test Case 20:
     s_iA  <= b"0100001001";
@@ -224,7 +224,7 @@ begin
     s_iA <= b"0100000001";
     s_iWE <= '0';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFE
+    -- Expect: s_oQ to be $00000002
 
     -- Test Case 23:
     s_iA <= b"0100000010";
@@ -236,19 +236,19 @@ begin
     s_iA <= b"0100000011";
     s_iWE <= '0';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFC
+    -- Expect: s_oQ to be $00000004
 
     -- Test Case 25:
     s_iA <= b"0100000100";
     s_iWE <= '0';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFB
+    -- Expect: s_oQ to be $00000005
 
     -- Test Case 26:
     s_iA <= b"0100000101";
     s_iWE <= '0';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFFA
+    -- Expect: s_oQ to be $00000006
 
     -- Test Case 27:
     s_iA <= b"0100000110";
@@ -266,7 +266,7 @@ begin
     s_iA <= b"0100001000";
     s_iWE <= '0';
     wait for gCLK_HPER * 2;
-    -- Expect: s_oQ to be $FFFFFFF7
+    -- Expect: s_oQ to be $00000009
 
     -- Test Case 30:
     s_iA <= b"0100001001";
