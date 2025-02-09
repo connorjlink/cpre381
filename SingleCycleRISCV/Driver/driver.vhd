@@ -19,7 +19,7 @@ entity driver is
         i_CLK        : in  std_logic;
         i_RST        : in  std_logic;
         i_Insn       : in  std_logic_vector(31 downto 0);
-        i_Branch     : in  std_logic;
+        i_MaskStall  : in  std_logic;
         o_MemWrite   : out std_logic;
         o_RegWrite   : out std_logic;
         o_RFSrc      : out natural; 
@@ -33,6 +33,7 @@ entity driver is
         o_Imm        : out std_logic_vector(31 downto 0);
         o_BranchMode : out natural;
         o_Break      : out std_logic;
+        o_IsBranch   : out std_logic;
         o_nInc2_Inc4 : out std_logic;
         o_ipToALU    : out std_logic
     );
@@ -173,8 +174,9 @@ begin
             o_hImm   => s_dechImm
         );
 
-    process(i_RST, i_Insn, s_decOpcode, s_decFunc3, s_decFunc7, 
+    process(i_RST, i_MaskStall, i_Insn, s_decOpcode, s_decFunc3, s_decFunc7, 
             s_extiImm, s_extsImm, s_extbImm, s_extuImm, s_extjImm)
+        variable v_IsBranch   : std_logic;
         variable v_Break      : std_logic;
         variable v_nZeroSign  : std_logic;
         variable v_MemWrite   : std_logic;
@@ -189,6 +191,7 @@ begin
         variable v_ipToALU    : std_logic;
     begin 
         if i_RST = '0' then
+            v_IsBranch   := '0';
             v_Break      := '0';
             v_nZeroSign  := '1'; -- default case is sign extension
             v_MemWrite   := '0';
@@ -210,6 +213,7 @@ begin
                     v_RegWrite := '1';
                     v_RFSrc := work.my_enums.FROM_NEXTIP;
                     v_BranchMode := work.my_enums.JAL;
+                    v_IsBranch := '1';
                     report "jal" severity note;
 
                 when 7b"1100111" => -- I-Format
@@ -219,6 +223,7 @@ begin
                     v_RegWrite := '1';
                     v_RFSrc := work.my_enums.FROM_NEXTIP;
                     v_BranchMode := work.my_enums.JALR;
+                    v_IsBranch := '1';
                     report "jalr" severity note;
 
                 when 7b"0010011" => -- I-format
@@ -455,6 +460,7 @@ begin
                     -- v_ALUSrc := '1';
                     -- v_ipToALU := '1';
                     v_BranchMode := work.my_enums.BCC;
+                    v_IsBranch := '1';
 
                     case s_decFunc3 is 
                         when 3b"000" =>
@@ -516,6 +522,7 @@ begin
                     report "Illegal Instruction" severity error;
             end case;
         else
+            v_IsBranch   := '0';
             v_Break      := '0';
             v_nZeroSign  := '1'; -- default case is sign extension
             v_MemWrite   := '0';
@@ -529,6 +536,15 @@ begin
             v_ipToALU    := '0';
         end if;
 
+    
+        -- reset the stall signal once we have branched to start fetching new instructions
+        -- NOTE: this is taking place after setting the control signals to override anything else
+        if i_MaskStall = '1' then
+            v_IsBranch := '0';
+            report "BRANCHED - PIPELINE STALL RESCINDED" severity note;
+        end if;
+
+        o_IsBranch   <= v_IsBranch;
         o_Break      <= v_Break;
         s_nZeroSign  <= v_nZeroSign;
         o_MemWrite   <= v_MemWrite; 

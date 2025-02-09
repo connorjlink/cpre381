@@ -1,0 +1,9 @@
+00000293 // addi x5, x0, 0
+00100313 // addi x6, x0, 1
+0053a023 // sw x5, 0(x7)
+00438393 // addi x7, x7, 4
+00628533 // add x10, x5, x6
+006002b3 // add x5, x0, x6
+00000013 // NOP FOR PIPELINE PADDING
+00a00333 // add x6, x0, x10
+fedff06f // jal x0, -20

@@ -4,14 +4,22 @@ use IEEE.numeric_std.all;
 
 package my_records is
 
+-- Corresponding enumerators for each pipeline stage
+constant INSN   : natural := 0;
+constant DRIVER : natural := 1;
+constant ALU    : natural := 2;
+constant MEM    : natural := 3;
+
 type controls_t is record
 
     -- instruction register contents
     IPAddr     : std_logic_vector(31 downto 0);
+    LinkAddr   : std_logic_vector(31 downto 0);
     Insn       : std_logic_vector(31 downto 0);
     -- end
 
     -- driver register contents
+    Branch     : std_logic;
     MemWrite   : std_logic;
     RegWrite   : std_logic;
     RFSrc      : natural;
@@ -39,6 +47,6 @@ type controls_t is record
     Data       : std_logic_vector(31 downto 0);
     -- end
 
-end record control_signals_t;
+end record controls_t;
 
 end package my_records;
