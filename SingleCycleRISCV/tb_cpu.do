@@ -21,7 +21,8 @@ set NumericStdNoWarnings 0
 #mem load -infile test_all_instructions.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 #mem load -infile powers_of_two_test.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 #mem load -infile ../test/fibonacci/program.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
-mem load -infile ../test/load_store/program.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+#mem load -infile ../test/load_store/program.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
+mem load -infile ../test/exhaustive/program.hex -format hex /tb_cpu/DUT0/g_CPUInstructionMemory
 mem load -infile ../test/zero.hex -format hex /tb_cpu/DUT0/g_CPURegisterFile/s_Rx
 
 # Setup the wave form with useful signals
@@ -89,4 +90,4 @@ add wave -noupdate -radix hexadecimal /tb_cpu/DUT0/g_CPUALU/*
 
 
 # Run for 100 timesteps (default is 1ns per timestep, but this can be modified so be aware).
-run 600
+run 1500
