@@ -25,27 +25,6 @@ architecture mixed of tb_decoder is
 -- Total clock period
 constant cCLK_PER : time := gCLK_HPER * 2;
 
--- Element under test
-component decoder is
-    port(
-        i_CLK    : in  std_logic;
-        i_RST    : in  std_logic;
-        i_Insn   : in  std_logic_vector(31 downto 0);
-        o_Opcode : out std_logic_vector(6 downto 0);
-        o_RD     : out std_logic_vector(4 downto 0);
-        o_RS1    : out std_logic_vector(4 downto 0);
-        o_RS2    : out std_logic_vector(4 downto 0);
-        o_Func3  : out std_logic_vector(2 downto 0);
-        o_Func7  : out std_logic_vector(6 downto 0);
-        o_iImm   : out std_logic_vector(11 downto 0);
-        o_sImm   : out std_logic_vector(11 downto 0);
-        o_bImm   : out std_logic_vector(12 downto 0);
-        o_uImm   : out std_logic_vector(31 downto 12);
-        o_jImm   : out std_logic_vector(20 downto 0);
-        o_hImm   : out std_logic_vector(4 downto 0)
-    );
-end component;
-
 -- Create helper signals
 signal CLK, reset : std_logic := '0';
 
@@ -67,7 +46,7 @@ signal s_ohImm   : std_logic_vector(4 downto 0);
 begin
 
 -- Instantiate the module under test
-DUTO: decoder
+DUTO: entity work.decoder
     port MAP(
         i_CLK    => CLK,
         i_RST    => reset,

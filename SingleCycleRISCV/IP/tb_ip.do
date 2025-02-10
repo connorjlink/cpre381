@@ -34,7 +34,7 @@ add wave -noupdate -radix hexadecimal /tb_ip/s_iStall
 
 # Add data outputs that are specific to this design. These are the ones that we'll check for correctness.
 add wave -noupdate -divider {Data Outputs}
-add wave -noupdate -radix binary /tb_ip/s_oAddr
+add wave -noupdate -radix hexadecimal /tb_ip/s_oAddr
 
 # Add the standard, non-data clock and reset input signals again.
 # As you develop more complicated designs with many more signals, you will probably find it helpful to

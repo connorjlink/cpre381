@@ -24,28 +24,15 @@ add wave -noupdate -label reset /tb_driver/reset
 # careful to look at the radix specifier (e.g., the decimal value 32'd10 is the same as the hexidecimal
 # value 32'hA.
 add wave -noupdate -divider {Data Inputs}
-add wave -noupdate -radix hexadecimal /tb_driver/s_iBranch
 add wave -noupdate -radix hexadecimal /tb_driver/s_iInsn
+add wave -noupdate -radix hexadecimal /tb_driver/s_iMaskStall
 
 # INPUT/OUTPUT added here
 #add wave -noupdate -divider {Data Input/Outputs}
 
 # Add data outputs that are specific to this design. These are the ones that we'll check for correctness.
-add wave -noupdate -divider {Data Outputs}
-add wave -noupdate -radix binary /tb_driver/s_oMemWrite
-add wave -noupdate -radix binary /tb_driver/s_oRegWrite
-add wave -noupdate -radix binary /tb_driver/s_oRFSrc
-add wave -noupdate -radix binary /tb_driver/s_oALUSrc
-add wave -noupdate -radix unsigned /tb_driver/s_oALUOp
-add wave -noupdate -radix unsigned /tb_driver/s_oBGUOp
-add wave -noupdate -radix unsigned /tb_driver/s_oLSWidth
-add wave -noupdate -radix hexadecimal /tb_driver/s_oRD
-add wave -noupdate -radix hexadecimal /tb_driver/s_oRS1
-add wave -noupdate -radix hexadecimal /tb_driver/s_oRS2
-add wave -noupdate -radix hexadecimal /tb_driver/s_oImm
-add wave -noupdate -radix hexadecimal /tb_driver/s_oiAddr
-add wave -noupdate -radix hexadecimal /tb_driver/s_oLinkAddr
-add wave -noupdate -radix binary /tb_driver/s_oBreak
+add wave -noupdate -divider {All Signals}
+add wave -noupdate -radix hexadecimal /tb_driver/*
 
 # Add the standard, non-data clock and reset input signals again.
 # As you develop more complicated designs with many more signals, you will probably find it helpful to

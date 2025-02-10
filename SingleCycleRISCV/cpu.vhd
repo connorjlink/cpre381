@@ -25,11 +25,11 @@ component driver is
         i_CLK        : in  std_logic;
         i_RST        : in  std_logic;
         i_Insn       : in  std_logic_vector(31 downto 0);
-        i_Branch     : in  std_logic;
+        i_MaskStall  : in  std_logic;
         o_MemWrite   : out std_logic;
         o_RegWrite   : out std_logic;
         o_RFSrc      : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
-        o_ALUSrc     : out std_logic; -- 0 = immediate, 1 = register
+        o_ALUSrc     : out std_logic; -- 0 = register, 1 = immediate
         o_ALUOp      : out natural;
         o_BGUOp      : out natural;
         o_LSWidth    : out natural;
@@ -39,8 +39,9 @@ component driver is
         o_Imm        : out std_logic_vector(31 downto 0);
         o_BranchMode : out natural;
         o_Break      : out std_logic;
+        o_IsBranch   : out std_logic;
         o_nInc2_Inc4 : out std_logic;
-        o_ipToALU    : out std_logic
+        o_IPToALU    : out std_logic
     );
 end component;
 
@@ -153,7 +154,7 @@ signal s_dRS2        : std_logic_vector(4 downto 0);
 signal s_dImm        : std_logic_vector(31 downto 0);
 signal s_dBranchMode : natural;
 signal s_dBreak      : std_logic;
-signal s_dipToALU    : std_logic;
+signal s_dIPToALU    : std_logic;
 
 -- Signals to handle the output of the BGU
 signal s_Branch : std_logic;
@@ -177,7 +178,7 @@ signal s_effectiveAddr : std_logic_vector(31 downto 0);
 signal s_linkAddr      : std_logic_vector(31 downto 0);
 
 -- is the current instruction two or four bytes long?
-signal s_decnInc2_Inc4 : std_logic; 
+signal s_dnInc2_Inc4 : std_logic; 
 
 begin
 
@@ -195,7 +196,7 @@ begin
             i_RST        => i_RST,
             i_Load       => s_Branch,
             i_Addr       => s_effectiveAddr,
-            i_nInc2_Inc4 => s_decnInc2_Inc4,
+            i_nInc2_Inc4 => s_dnInc2_Inc4,
             --i_Stall      => s_dBreak, -- only relevant for pipelined CPU model
             i_Stall      => '0',
             o_Addr       => s_ipAddr,
@@ -251,7 +252,7 @@ begin
             i_CLK        => s_gCLK,
             i_RST        => i_RST,
             i_Insn       => s_mInsn,
-            i_Branch     => s_Branch,
+            i_MaskStall  => '0',
             o_MemWrite   => s_dMemWrite,
             o_RegWrite   => s_dRegWrite,
             o_RFSrc      => s_dRFSrc,
@@ -264,7 +265,10 @@ begin
             o_RS2        => s_dRS2, 
             o_Imm        => s_dImm,
             o_BranchMode => s_dBranchMode,
-            o_Break      => s_dBreak
+            o_Break      => s_dBreak,
+            o_IsBranch   => open,
+            o_nInc2_Inc4 => s_dnInc2_Inc4,
+            o_IPToALU    => s_dIPToALU
         );
 
     s_dAddr <= s_aluF;
@@ -289,7 +293,7 @@ begin
             o_DS2 => s_DS2
         );
 
-    s_aluA <= s_ipAddr when (s_dipToALU = '1') else
+    s_aluA <= s_ipAddr when (s_dIPToALU = '1') else
               s_DS1;
 
     s_aluB <= s_DS2 when (s_dALUSrc = '0') else

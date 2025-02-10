@@ -28,24 +28,26 @@ constant cCLK_PER : time := gCLK_HPER * 2;
 -- Element under test
 component driver is
     port(
-        i_CLK       : in  std_logic;
-        i_RST       : in  std_logic;
-        i_Insn      : in  std_logic_vector(31 downto 0);
-        i_Branch    : in  std_logic;
-        o_MemWrite  : out std_logic;
-        o_RegWrite  : out std_logic;
-        o_RFSrc     : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
-        o_ALUSrc    : out std_logic; -- 0 = register, 1 = immediate
-        o_ALUOp     : out natural;
-        o_BGUOp     : out natural;
-        o_LSWidth   : out natural;
-        o_RD        : out std_logic_vector(4 downto 0);
-        o_RS1       : out std_logic_vector(4 downto 0);
-        o_RS2       : out std_logic_vector(4 downto 0);
-        o_Imm       : out std_logic_vector(31 downto 0);
-        o_iAddr     : out std_logic_vector(31 downto 0);
-        o_LinkAddr  : out std_logic_vector(31 downto 0);
-        o_Break     : out std_logic
+        i_CLK        : in  std_logic;
+        i_RST        : in  std_logic;
+        i_Insn       : in  std_logic_vector(31 downto 0);
+        i_MaskStall  : in  std_logic;
+        o_MemWrite   : out std_logic;
+        o_RegWrite   : out std_logic;
+        o_RFSrc      : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
+        o_ALUSrc     : out std_logic; -- 0 = register, 1 = immediate
+        o_ALUOp      : out natural;
+        o_BGUOp      : out natural;
+        o_LSWidth    : out natural;
+        o_RD         : out std_logic_vector(4 downto 0);
+        o_RS1        : out std_logic_vector(4 downto 0);
+        o_RS2        : out std_logic_vector(4 downto 0);
+        o_Imm        : out std_logic_vector(31 downto 0);
+        o_BranchMode : out natural;
+        o_Break      : out std_logic;
+        o_IsBranch   : out std_logic;
+        o_nInc2_Inc4 : out std_logic;
+        o_IPToALU    : out std_logic
     );
 end component;
 
@@ -53,46 +55,48 @@ end component;
 signal CLK, reset : std_logic := '0';
 
 -- Create input and output signals for the module under test
-signal s_iInsn     : std_logic_vector(31 downto 0) := 32x"0";
-signal s_iBranch   : std_logic := '0';
-signal s_oMemWrite : std_logic;
-signal s_oRegWrite : std_logic;
-signal s_oRFSrc    : natural;
-signal s_oALUSrc   : std_logic;
-signal s_oALUOp    : natural;
-signal s_oBGUOp    : natural;
-signal s_oLSWidth  : natural;
-signal s_oRD       : std_logic_vector(4 downto 0);
-signal s_oRS1      : std_logic_vector(4 downto 0);
-signal s_oRS2      : std_logic_vector(4 downto 0);
-signal s_oImm      : std_logic_vector(31 downto 0);
-signal s_oiAddr    : std_logic_vector(31 downto 0);
-signal s_oLinkAddr : std_logic_Vector(31 downto 0);
-signal s_oBreak    : std_logic;
+signal s_iInsn       : std_logic_vector(31 downto 0) := 32x"0";
+signal s_iMaskStall  : std_logic := '0';  -- This will only be used for the pipelined implementation, so safe to ignore for now!
+signal s_oMemWrite   : std_logic;
+signal s_oRegWrite   : std_logic;
+signal s_oRFSrc      : natural;
+signal s_oALUSrc     : std_logic;
+signal s_oALUOp      : natural;
+signal s_oBGUOp      : natural;
+signal s_oLSWidth    : natural;
+signal s_oRD         : std_logic_vector(4 downto 0);
+signal s_oRS1        : std_logic_vector(4 downto 0);
+signal s_oRS2        : std_logic_vector(4 downto 0);
+signal s_oImm        : std_logic_vector(31 downto 0);
+signal s_oBreak      : std_logic;
+signal s_oIsBranch   : std_logic;
+signal s_onInc2_Inc4 : std_logic;
+signal s_oIPToALU    : std_logic;
 
 begin
 
 -- Instantiate the module under test
 DUTO: driver
     port MAP(
-        i_CLK      => CLK,
-        i_RST      => reset,
-        i_Insn     => s_iInsn,
-        i_Branch   => s_iBranch,
-        o_MemWrite => s_oMemWrite,
-        o_RegWrite => s_oRegWrite,
-        o_RFSrc    => s_oRFSrc,
-        o_ALUSrc   => s_oALUSrc,
-        o_ALUOp    => s_oALUOp,
-        o_BGUOp    => s_oBGUOp,
-        o_LSWidth  => s_oLSWidth,
-        o_RD       => s_oRD,
-        o_RS1      => s_oRS1,
-        o_RS2      => s_oRS2,
-        o_Imm      => s_oImm,
-        o_iAddr    => s_oiAddr,
-        o_LinkAddr => s_oLinkAddr,
-        o_Break    => s_oBreak
+        i_CLK        => CLK,
+        i_RST        => reset,
+        i_Insn       => s_iInsn,
+        i_MaskStall  => s_iMaskStall,
+        o_MemWrite   => s_oMemWrite,
+        o_RegWrite   => s_oRegWrite,
+        o_RFSrc      => s_oRFSrc,
+        o_ALUSrc     => s_oALUSrc,
+        o_ALUOp      => s_oALUOp,
+        o_BGUOp      => s_oBGUOp,
+        o_LSWidth    => s_oLSWidth,
+        o_RD         => s_oRD,
+        o_RS1        => s_oRS1,
+        o_RS2        => s_oRS2,
+        o_Imm        => s_oImm,
+        o_Break      => s_oBreak,
+        o_IsBranch   => s_oIsBranch,
+        o_nInc2_Inc4 => s_onInc2_Inc4,
+        o_IPToALU    => s_oIPToALU
     );
 
 --This first process is to setup the clock for the test bench
@@ -125,11 +129,6 @@ begin
     wait for gCLK_HPER;
 	wait for gCLK_HPER/2; -- don't change inputs on clock edges
     wait for gCLK_HPER * 2;
-
-    -- i_Insn     => s_iInsn,
-    -- i_Branch   => s_iBranch,
-
-    s_iBranch <= '0';
 
     -- Test Case 1: 
     -- addi x25, x0, 0   # 0x00000c93

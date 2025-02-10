@@ -22,7 +22,7 @@ entity driver is
         i_MaskStall  : in  std_logic;
         o_MemWrite   : out std_logic;
         o_RegWrite   : out std_logic;
-        o_RFSrc      : out natural; 
+        o_RFSrc      : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
         o_ALUSrc     : out std_logic; -- 0 = register, 1 = immediate
         o_ALUOp      : out natural;
         o_BGUOp      : out natural;
@@ -35,7 +35,7 @@ entity driver is
         o_Break      : out std_logic;
         o_IsBranch   : out std_logic;
         o_nInc2_Inc4 : out std_logic;
-        o_ipToALU    : out std_logic
+        o_IPToALU    : out std_logic
     );
 end driver;
 
