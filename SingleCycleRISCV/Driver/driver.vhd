@@ -35,7 +35,8 @@ entity driver is
         o_Break      : out std_logic;
         o_IsBranch   : out std_logic;
         o_nInc2_Inc4 : out std_logic;
-        o_IPToALU    : out std_logic
+        o_IPToALU    : out std_logic;
+        o_nZero_Sign : out std_logic
     );
 end driver;
 
@@ -92,10 +93,6 @@ signal s_extuImm : std_logic_vector(31 downto 0);
 signal s_extjImm : std_logic_vector(31 downto 0);
 signal s_exthImm : std_logic_vector(31 downto 0);
 
--- Signal to hold the immediate extension information
-signal s_nZeroSign : std_logic;
-
-
 begin
 
     -- 4-byte instructions are indicated by a 11 in the two least-significant bits of the opcode
@@ -109,7 +106,7 @@ begin
         )
         port MAP(
             i_D          => s_deciImm,
-            i_nZero_Sign => s_nZeroSign,
+            i_nZero_Sign => o_nZero_Sign,
             o_Q          => s_extiImm
         );
 
@@ -120,7 +117,7 @@ begin
         )
         port MAP(
             i_D          => s_decsImm,
-            i_nZero_Sign => s_nZeroSign,
+            i_nZero_Sign => o_nZero_Sign,
             o_Q          => s_extsImm
         );
 
@@ -131,7 +128,7 @@ begin
         )
         port MAP(
             i_D          => s_decbImm,
-            i_nZero_Sign => s_nZeroSign,
+            i_nZero_Sign => o_nZero_Sign,
             o_Q          => s_extbImm
         );
 
@@ -146,7 +143,7 @@ begin
         )
         port MAP(
             i_D          => s_decjImm,
-            i_nZero_Sign => s_nZeroSign,
+            i_nZero_Sign => o_nZero_Sign,
             o_Q          => s_extjImm
         );
 
@@ -234,17 +231,9 @@ begin
 
                     case s_decFunc3 is
                         when 3b"000" =>
-                            if s_decFunc7 = 7b"0100000" then
-                                -- subi  - 000 + 0100000
-                                v_ALUOp := work.my_enums.SUB;
-                                report "subi" severity note;
-
-                            else
-                                -- addi  - 000 + 0000000
-                                v_ALUOp := work.my_enums.ADD;
-                                report "addi" severity note;
-
-                            end if;
+                            -- NOTE: there is no `subi` because addi with negative is mostly equivalent
+                            v_ALUOp := work.my_enums.ADD;
+                            report "addi" severity note;
 
                         when 3b"001" =>
                             -- slli  - 001
@@ -307,23 +296,27 @@ begin
                     case s_decFunc3 is
                         when 3b"000" =>
                             -- lb   - 000
+                            v_nZeroSign := '1';
                             v_LSWidth := work.my_enums.BYTE;
                             report "lb" severity note;
 
                         when 3b"001" =>
                             -- lh   - 001
+                            v_nZeroSign := '1';
                             v_LSWidth := work.my_enums.HALF;
                             report "lh" severity note;
 
                         when 3b"010" =>
                             -- lw   - 010
+                            v_nZeroSign := '1';
                             v_LSWidth := work.my_enums.WORD;
                             report "lw" severity note;
 
-                        when 3b"011" =>
-                            -- ld   - 011
-                            v_LSWidth := work.my_enums.DOUBLE;
-                            report "ld" severity note;
+                        -- RV64I
+                        --when 3b"011" =>
+                        --    -- ld   - 011
+                        --    v_LSWidth := work.my_enums.DOUBLE;
+                        --    report "ld" severity note;
 
                         when 3b"100" =>
                             -- lbu  - 100
@@ -345,11 +338,12 @@ begin
                             report "lwu" severity note;
 
                         -- NOTE: unoffical (since not necessary), but not illegal
-                        when 3b"111" =>
-                            -- ldu  - 111
-                            v_nZeroSign := '0';
-                            v_LSWidth := work.my_enums.DOUBLE;
-                            report "ldu" severity note;
+                        -- RV64I
+                        --when 3b"111" =>
+                        --    -- ldu  - 111
+                        --    v_nZeroSign := '0';
+                        --    v_LSWidth := work.my_enums.DOUBLE;
+                        --    report "ldu" severity note;
 
                         when others =>
                             v_Break := '1';
@@ -377,10 +371,11 @@ begin
                             v_LSWidth := work.my_enums.WORD;
                             report "sw" severity note;
 
-                        when 3b"011" =>
-                            -- sd   - 011
-                            v_LSWidth := work.my_enums.DOUBLE;
-                            report "sd" severity note;
+                        -- RV64I
+                        --when 3b"011" =>
+                        --    -- sd   - 011
+                        --    v_LSWidth := work.my_enums.DOUBLE;
+                        --    report "sd" severity note;
 
                         when others =>
                             v_Break := '1';
@@ -546,7 +541,7 @@ begin
 
         o_IsBranch   <= v_IsBranch;
         o_Break      <= v_Break;
-        s_nZeroSign  <= v_nZeroSign;
+        o_nZero_Sign <= v_nZeroSign;
         o_MemWrite   <= v_MemWrite; 
         o_RegWrite   <= v_RegWrite; 
         o_RFSrc      <= v_RFSrc;    

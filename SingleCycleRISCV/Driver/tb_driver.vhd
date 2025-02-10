@@ -47,6 +47,7 @@ component driver is
         o_Break      : out std_logic;
         o_IsBranch   : out std_logic;
         o_nInc2_Inc4 : out std_logic;
+        o_nZero_Sign : out std_logic;
         o_IPToALU    : out std_logic
     );
 end component;
@@ -71,6 +72,7 @@ signal s_oImm        : std_logic_vector(31 downto 0);
 signal s_oBreak      : std_logic;
 signal s_oIsBranch   : std_logic;
 signal s_onInc2_Inc4 : std_logic;
+signal s_onZero_Sign : std_logic;
 signal s_oIPToALU    : std_logic;
 
 begin
@@ -96,6 +98,7 @@ DUTO: driver
         o_Break      => s_oBreak,
         o_IsBranch   => s_oIsBranch,
         o_nInc2_Inc4 => s_onInc2_Inc4,
+        o_nZero_Sign => s_onZero_Sign,
         o_IPToALU    => s_oIPToALU
     );
 

@@ -1,0 +1,56 @@
+# All Instructions
+## RV32-I MANDATORY
+- lui
+- auipc
+- addi
+- subi // actually just ADDI?
+- slti
+- sltiu
+- xori
+- ori
+- andi
+- slli
+- srli
+- srai
+- add
+- sub
+- sll
+- slt
+- sltu
+- xor
+- srl
+- sra
+- or
+- and
+- lb
+- lh
+- lw
+- lbu
+- lhu
+- sb
+- sh
+- sw
+- jal
+- jalr
+- beq
+- bne
+- blt
+- bge
+- bltu
+- bgeu
+
+## RV32-I EXTENDED OPTIONAL
+- fence
+- fence.i
+- csrrw
+- csrrs
+- csrrwi
+- csrrsi
+- csrrci
+- ecall
+- ebreak
+- uret
+- sret
+- mret
+- wfi
+- sfence.vma
