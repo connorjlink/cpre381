@@ -146,7 +146,7 @@ _start:
     li x4, 0x0000
     bne x3, x4, fail
 
-# Test Load and Store Instructions
+    # Test Load and Store Instructions
     li x31, 21
     li x1, 0x12345678
     sw x1, 0(x0)
@@ -199,15 +199,15 @@ branch_pass4:
     li x1, 1
     li x2, 2
     bltu x1, x2, branch_pass5
-    j fail
+    j failm
 branch_pass5:
     li x31, 30
-    li x1, 2
+    li x1, 2m
     li x2, 1
     bgeu x1, x2, branch_done
     j fail
 
-branch_done:
+branch_done: 
     # If all tests pass, loop indefinitely
     j success
 

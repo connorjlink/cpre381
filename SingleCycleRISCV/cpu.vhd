@@ -64,13 +64,8 @@ signal s_Branch : std_logic;
 
 -- Signal to hold the current instruction pointer
 signal s_ipAddr : std_logic_vector(31 downto 0);
-
 -- Signals to hold the data memory address pointer
 signal s_dAddr : std_logic_vector(31 downto 0);
-
--- Signal to handle the shifted addresses
-signal s_ipAddrShift : std_logic_vector(9 downto 0);
-signal s_dAddrShift : std_logic_vector(9 downto 0);
 
 -- Signal to hold the modified clock
 signal s_gCLK  : std_logic;
@@ -114,9 +109,6 @@ begin
             o_Branch => s_Branch
         );
 
-    s_ipAddrShift(9 downto 0) <= s_ipAddr(11 downto 2);
-    s_dAddrShift(9 downto 0) <= s_dAddr(11 downto 2);
-
     g_CPUInstructionMemory: entity work.mem
         generic MAP(
             DATA_WIDTH => 32,
@@ -125,7 +117,7 @@ begin
         port MAP(
             -- TODO: should this be posedge or negedge
             clk  => s_gCLK,
-            addr => s_ipAddrShift,
+            addr => s_ipAddr,
             data => 32x"0", -- treated as read only memory
             we   => '0',
             q    => s_mInsn
@@ -146,7 +138,7 @@ begin
             -- TODO: should this be posedge or negedge
             -- clk  => s_gCLK, 
             clk => s_ngCLK,
-            addr => s_dAddrShift,
+            addr => s_dAddr,
             data => s_ScaledDS2,
             we   => s_dMemWrite,
             q    => s_mData
@@ -184,14 +176,6 @@ begin
              s_linkAddr    when (s_dRFSrc = work.my_enums.FROM_NEXTIP) else
              s_dImm        when (s_dRFSrc = work.my_enums.FROM_IMM)    else
              (others => '0');
-
-    -- s_ScaledD <= std_logic_vector(unsigned(s_rfD(7 downto 0)))  when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '0') else
-    --              std_logic_vector(  signed(s_rfD(7 downto 0)))  when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '1') else
-    --              std_logic_vector(unsigned(s_rfD(15 downto 0))) when (s_dLSWidth = work.my_enums.HALF and s_dnZero_Sign = '0') else
-    --              std_logic_vector(  signed(s_rfD(15 downto 0))) when (s_dLSWidth = work.my_enums.HALF and s_dnZero_Sign = '1') else
-    --              std_logic_vector(unsigned(s_rfD(31 downto 0))) when (s_dLSWidth = work.my_enums.WORD and s_dnZero_Sign = '0') else
-    --              std_logic_vector(  signed(s_rfD(31 downto 0))) when (s_dLSWidth = work.my_enums.WORD and s_dnZero_Sign = '1') else
-    --              (others => '0');
 
     s_mDataScaled <= std_logic_vector(resize(unsigned(s_mData(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '0') else
                      std_logic_vector(resize(  signed(s_mData(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '1') else
