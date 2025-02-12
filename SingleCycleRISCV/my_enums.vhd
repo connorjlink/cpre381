@@ -2,7 +2,7 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
-package my_enums is
+package RISCV_types is
 
 -- Corresponding func3 values for each branch type
 constant BEQ  : natural := 1;
@@ -42,4 +42,4 @@ constant JAL  : natural := 1;
 constant JALR : natural := 2;
 constant BCC  : natural := 3;
 
-end package my_enums;
+end package RISCV_types;

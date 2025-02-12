@@ -11,7 +11,7 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-use work.my_types.all;
+use work.RISCV_types.all;
 
 entity mux32t1 is
     port(i_S : in  std_logic_vector(4 downto 0);

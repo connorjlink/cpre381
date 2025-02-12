@@ -12,7 +12,7 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 library work;
-use work.my_enums.all;
+use work.RISCV_types.all;
 
 entity alu is
     generic(
@@ -153,20 +153,20 @@ begin
     s_sltF  <= 32x"1" when (signed(i_A) < signed(i_B)) else
                32x"0";
 
-    o_F <= s_addF  when (i_ALUOp = work.my_enums.ADD)  else
-           s_subF  when (i_ALUOp = work.my_enums.SUB)  else
-           s_andF  when (i_ALUOp = work.my_enums.BAND) else
-           s_orF   when (i_ALUOp = work.my_enums.BOR)  else
-           s_xorF  when (i_ALUOp = work.my_enums.BXOR) else
-           s_sllF  when (i_ALUOp = work.my_enums.BSLL) else
-           s_srlF  when (i_ALUOp = work.my_enums.BSRL) else
-           s_sraF  when (i_ALUOp = work.my_enums.BSRA) else
-           s_sltF  when (i_ALUOp = work.my_enums.SLT)  else
-           s_sltuF when (i_ALUOp = work.my_enums.SLTU) else
+    o_F <= s_addF  when (i_ALUOp = work.RISCV_types.ADD)  else
+           s_subF  when (i_ALUOp = work.RISCV_types.SUB)  else
+           s_andF  when (i_ALUOp = work.RISCV_types.BAND) else
+           s_orF   when (i_ALUOp = work.RISCV_types.BOR)  else
+           s_xorF  when (i_ALUOp = work.RISCV_types.BXOR) else
+           s_sllF  when (i_ALUOp = work.RISCV_types.BSLL) else
+           s_srlF  when (i_ALUOp = work.RISCV_types.BSRL) else
+           s_sraF  when (i_ALUOp = work.RISCV_types.BSRA) else
+           s_sltF  when (i_ALUOp = work.RISCV_types.SLT)  else
+           s_sltuF when (i_ALUOp = work.RISCV_types.SLTU) else
            32x"0";
 
-    o_Co <= s_addCo when (i_ALUOp = work.my_enums.ADD) else
-            s_subCo when (i_ALUOp = work.my_enums.SUB) else
+    o_Co <= s_addCo when (i_ALUOp = work.RISCV_types.ADD) else
+            s_subCo when (i_ALUOp = work.RISCV_types.SUB) else
             '0';
 
 end mixed;

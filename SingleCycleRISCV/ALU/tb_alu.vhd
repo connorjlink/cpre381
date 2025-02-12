@@ -14,7 +14,7 @@ use IEEE.numeric_std.all;
 library std;
 use std.env.all;
 use std.textio.all;
-use work.my_enums.all;
+use work.RISCV_types.all;
 
 entity tb_alu is
     generic(gCLK_HPER  : time := 10 ns;
@@ -100,70 +100,70 @@ begin
     -- Test Case 1
     s_iA <= 32x"5";
     s_iB <= 32x"7";
-    s_iALUOp <= work.my_enums.ADD;
+    s_iALUOp <= work.RISCV_types.ADD;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $C, s_oCo to be 0
 
     -- Test Case 2
     s_iA <= 32x"7";
     s_iB <= 32x"5";
-    s_iALUOp <= work.my_enums.SUB;
+    s_iALUOp <= work.RISCV_types.SUB;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $2, s_oCo to be 1 (not borrow)
 
     -- Test Case 3
     s_iA <= 32x"FFFFFFFF";
     s_iB <= 32x"CCCCCCCC";
-    s_iALUOp <= work.my_enums.BAND;
+    s_iALUOp <= work.RISCV_types.BAND;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $CCCCCCCC, s_oCo to be 0
 
     -- Test Case 4
     s_iA <= 32x"33333333";
     s_iB <= 32x"CCCCCCCC";
-    s_iALUOp <= work.my_enums.BOR;
+    s_iALUOp <= work.RISCV_types.BOR;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $FFFFFFFF, s_oCo to be 0
 
     -- Test Case 5
     s_iA <= 32x"33333333";
     s_iB <= 32x"FFFFFFFF";
-    s_iALUOp <= work.my_enums.BXOR;
+    s_iALUOp <= work.RISCV_types.BXOR;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $CCCCCCCC, s_oCo to be 0
 
     -- Test Case 6
     s_iA <= 32x"80000000";
     s_iB <= 32x"1";
-    s_iALUOp <= work.my_enums.BSLL;
+    s_iALUOp <= work.RISCV_types.BSLL;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $0, s_oCo to be 0
 
     -- Test Case 7
     s_iA <= 32x"80000000";
     s_iB <= 32x"1";
-    s_iALUOp <= work.my_enums.BSRL;
+    s_iALUOp <= work.RISCV_types.BSRL;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $40000000, s_oCo to be 0
 
     -- Test Case 8
     s_iA <= 32x"80000000";
     s_iB <= 32x"1";
-    s_iALUOp <= work.my_enums.BSRA;
+    s_iALUOp <= work.RISCV_types.BSRA;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $C0000000, s_oCo to be 0
 
     -- Test Case 9
     s_iA <= 32x"80000000";
     s_iB <= 32x"1";
-    s_iALUOp <= work.my_enums.SLT;
+    s_iALUOp <= work.RISCV_types.SLT;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $1, s_oCo to be 0
 
     -- Test Case 10
     s_iA <= 32x"80000000";
     s_iB <= 32x"1";
-    s_iALUOp <= work.my_enums.SLTU;
+    s_iALUOp <= work.RISCV_types.SLTU;
     wait for gCLK_HPER * 2;
     -- Expect s_oF to be $0, s_oCo to be 0
 

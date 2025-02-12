@@ -14,7 +14,7 @@ use IEEE.numeric_std.all;
 library std;
 use std.env.all;
 use std.textio.all;
-use work.my_enums.all;
+use work.RISCV_types.all;
 
 entity tb_bgu is
     generic(gCLK_HPER  : time := 10 ns;
@@ -92,85 +92,85 @@ begin
     -- Test Case 1: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BEQ;
+    s_iBGUOp <= work.RISCV_types.BEQ;
     wait for gCLK_HPER * 2;
 
     -- Test Case 2: 
     s_iDS1 <= 32x"5";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BEQ;
+    s_iBGUOp <= work.RISCV_types.BEQ;
     wait for gCLK_HPER * 2;
 
     -- Test Case 3: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BNE;
+    s_iBGUOp <= work.RISCV_types.BNE;
     wait for gCLK_HPER * 2;
 
     -- Test Case 4: 
     s_iDS1 <= 32x"5";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BNE;
+    s_iBGUOp <= work.RISCV_types.BNE;
     wait for gCLK_HPER * 2;
 
     -- Test Case 5: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BLT;
+    s_iBGUOp <= work.RISCV_types.BLT;
     wait for gCLK_HPER * 2;
 
     -- Test Case 6: 
     s_iDS1 <= 32x"4";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BLT;
+    s_iBGUOp <= work.RISCV_types.BLT;
     wait for gCLK_HPER * 2;
 
     -- Test Case 7: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BGE;
+    s_iBGUOp <= work.RISCV_types.BGE;
     wait for gCLK_HPER * 2;
 
     -- Test Case 8: 
     s_iDS1 <= 32x"5";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BGE;
+    s_iBGUOp <= work.RISCV_types.BGE;
     wait for gCLK_HPER * 2;
 
     -- Test Case 9: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BLTU;
+    s_iBGUOp <= work.RISCV_types.BLTU;
     wait for gCLK_HPER * 2;
 
     -- Test Case 10: 
     s_iDS1 <= 32x"4";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BLTU;
+    s_iBGUOp <= work.RISCV_types.BLTU;
     wait for gCLK_HPER * 2;
 
     -- Test Case 11: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BGEU;
+    s_iBGUOp <= work.RISCV_types.BGEU;
     wait for gCLK_HPER * 2;
 
     -- Test Case 12: 
     s_iDS1 <= 32x"5";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.BGEU;
+    s_iBGUOp <= work.RISCV_types.BGEU;
     wait for gCLK_HPER * 2;
 
     -- Test Case 13: 
     s_iDS1 <= 32x"7";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.J;
+    s_iBGUOp <= work.RISCV_types.J;
     wait for gCLK_HPER * 2;
 
     -- Test Case 14: 
     s_iDS1 <= 32x"5";
     s_iDS2 <= 32x"5";
-    s_iBGUOp <= work.my_enums.J;
+    s_iBGUOp <= work.RISCV_types.J;
     wait for gCLK_HPER * 2;
 
     wait;

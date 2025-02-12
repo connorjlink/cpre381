@@ -11,7 +11,7 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-use work.my_enums.all;
+use work.RISCV_types.all;
 
 entity cpu is
     port(i_CLK : in std_logic;
@@ -82,9 +82,9 @@ signal s_linkAddr      : std_logic_vector(31 downto 0);
 
 begin
 
-    s_effectiveAddr <= std_logic_vector(signed(s_ipAddr) + signed(s_dImm)) when (s_dBranchMode = work.my_enums.JAL)  else
-                       std_logic_vector(signed(s_DS1)    + signed(s_dImm)) when (s_dBranchMode = work.my_enums.JALR) else 
-                       std_logic_vector(signed(s_ipAddr) + signed(s_dImm)) when (s_dBranchMode = work.my_enums.BCC)  else
+    s_effectiveAddr <= std_logic_vector(signed(s_ipAddr) + signed(s_dImm)) when (s_dBranchMode = work.RISCV_types.JAL)  else
+                       std_logic_vector(signed(s_DS1)    + signed(s_dImm)) when (s_dBranchMode = work.RISCV_types.JALR) else 
+                       std_logic_vector(signed(s_ipAddr) + signed(s_dImm)) when (s_dBranchMode = work.RISCV_types.BCC)  else
                        (others => '0');
                        
     g_InstructionPointerUnit: entity work.ip
@@ -132,9 +132,9 @@ begin
         );
 
     -- NOTE: store instructiosn do not sign-extend
-    s_ScaledDS2 <= std_logic_vector(resize(unsigned(s_DS2(7  downto 0)), s_ScaledDS2'length)) when (s_dLSWidth = work.my_enums.BYTE) else
-                   std_logic_vector(resize(unsigned(s_DS2(15 downto 0)), s_ScaledDS2'length)) when (s_dLSWidth = work.my_enums.HALF) else
-                   std_logic_vector(resize(unsigned(s_DS2(31 downto 0)), s_ScaledDS2'length)) when (s_dLSWidth = work.my_enums.WORD) else
+    s_ScaledDS2 <= std_logic_vector(resize(unsigned(s_DS2(7  downto 0)), s_ScaledDS2'length)) when (s_dLSWidth = work.RISCV_types.BYTE) else
+                   std_logic_vector(resize(unsigned(s_DS2(15 downto 0)), s_ScaledDS2'length)) when (s_dLSWidth = work.RISCV_types.HALF) else
+                   std_logic_vector(resize(unsigned(s_DS2(31 downto 0)), s_ScaledDS2'length)) when (s_dLSWidth = work.RISCV_types.WORD) else
                    (others => '0');
 
     g_CPUDataMemory: entity work.mem
@@ -179,26 +179,26 @@ begin
 
     s_dAddr <= s_aluF;
 
-    s_rfD <= s_mDataScaled when (s_dRFSrc = work.my_enums.FROM_RAM)    else 
-             s_aluF        when (s_dRFSrc = work.my_enums.FROM_ALU)    else 
-             s_linkAddr    when (s_dRFSrc = work.my_enums.FROM_NEXTIP) else
-             s_dImm        when (s_dRFSrc = work.my_enums.FROM_IMM)    else
+    s_rfD <= s_mDataScaled when (s_dRFSrc = work.RISCV_types.FROM_RAM)    else 
+             s_aluF        when (s_dRFSrc = work.RISCV_types.FROM_ALU)    else 
+             s_linkAddr    when (s_dRFSrc = work.RISCV_types.FROM_NEXTIP) else
+             s_dImm        when (s_dRFSrc = work.RISCV_types.FROM_IMM)    else
              (others => '0');
 
-    -- s_ScaledD <= std_logic_vector(unsigned(s_rfD(7 downto 0)))  when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '0') else
-    --              std_logic_vector(  signed(s_rfD(7 downto 0)))  when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '1') else
-    --              std_logic_vector(unsigned(s_rfD(15 downto 0))) when (s_dLSWidth = work.my_enums.HALF and s_dnZero_Sign = '0') else
-    --              std_logic_vector(  signed(s_rfD(15 downto 0))) when (s_dLSWidth = work.my_enums.HALF and s_dnZero_Sign = '1') else
-    --              std_logic_vector(unsigned(s_rfD(31 downto 0))) when (s_dLSWidth = work.my_enums.WORD and s_dnZero_Sign = '0') else
-    --              std_logic_vector(  signed(s_rfD(31 downto 0))) when (s_dLSWidth = work.my_enums.WORD and s_dnZero_Sign = '1') else
+    -- s_ScaledD <= std_logic_vector(unsigned(s_rfD(7 downto 0)))  when (s_dLSWidth = work.RISCV_types.BYTE and s_dnZero_Sign = '0') else
+    --              std_logic_vector(  signed(s_rfD(7 downto 0)))  when (s_dLSWidth = work.RISCV_types.BYTE and s_dnZero_Sign = '1') else
+    --              std_logic_vector(unsigned(s_rfD(15 downto 0))) when (s_dLSWidth = work.RISCV_types.HALF and s_dnZero_Sign = '0') else
+    --              std_logic_vector(  signed(s_rfD(15 downto 0))) when (s_dLSWidth = work.RISCV_types.HALF and s_dnZero_Sign = '1') else
+    --              std_logic_vector(unsigned(s_rfD(31 downto 0))) when (s_dLSWidth = work.RISCV_types.WORD and s_dnZero_Sign = '0') else
+    --              std_logic_vector(  signed(s_rfD(31 downto 0))) when (s_dLSWidth = work.RISCV_types.WORD and s_dnZero_Sign = '1') else
     --              (others => '0');
 
-    s_mDataScaled <= std_logic_vector(resize(unsigned(s_mData(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '0') else
-                     std_logic_vector(resize(  signed(s_mData(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.BYTE and s_dnZero_Sign = '1') else
-                     std_logic_vector(resize(unsigned(s_mData(15 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.HALF and s_dnZero_Sign = '0') else
-                     std_logic_vector(resize(  signed(s_mData(15 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.HALF and s_dnZero_Sign = '1') else
-                     std_logic_vector(resize(unsigned(s_mData(31 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.WORD and s_dnZero_Sign = '0') else
-                     std_logic_vector(resize(  signed(s_mData(31 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.my_enums.WORD and s_dnZero_Sign = '1') else
+    s_mDataScaled <= std_logic_vector(resize(unsigned(s_mData(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.BYTE and s_dnZero_Sign = '0') else
+                     std_logic_vector(resize(  signed(s_mData(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.BYTE and s_dnZero_Sign = '1') else
+                     std_logic_vector(resize(unsigned(s_mData(15 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.HALF and s_dnZero_Sign = '0') else
+                     std_logic_vector(resize(  signed(s_mData(15 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.HALF and s_dnZero_Sign = '1') else
+                     std_logic_vector(resize(unsigned(s_mData(31 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.WORD and s_dnZero_Sign = '0') else
+                     std_logic_vector(resize(  signed(s_mData(31 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.WORD and s_dnZero_Sign = '1') else
                      (others => '0');
 
     g_CPURegisterFile: entity work.regfile

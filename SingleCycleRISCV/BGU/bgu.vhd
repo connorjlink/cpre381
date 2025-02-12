@@ -12,7 +12,7 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 library work;
-use work.my_enums.all;
+use work.RISCV_types.all;
 
 entity bgu is
     port(
@@ -28,25 +28,25 @@ architecture mixed of bgu is
 
 begin
 
-    o_Branch <= '1' when (i_BGUOp = work.my_enums.BEQ and 
+    o_Branch <= '1' when (i_BGUOp = work.RISCV_types.BEQ and 
                           unsigned(i_DS1) = unsigned(i_DS2)) else
 
-                '1' when (i_BGUOp = work.my_enums.BNE and -- NOTE: this is not division... it's != in VHDL for some reason
+                '1' when (i_BGUOp = work.RISCV_types.BNE and -- NOTE: this is not division... it's != in VHDL for some reason
                           unsigned(i_DS1) /= unsigned(i_DS2)) else
 
-                '1' when (i_BGUOp = work.my_enums.BLT and
+                '1' when (i_BGUOp = work.RISCV_types.BLT and
                           signed(i_DS1) < signed(i_DS2)) else
 
-                '1' when (i_BGUOp = work.my_enums.BGE and 
+                '1' when (i_BGUOp = work.RISCV_types.BGE and 
                           signed(i_DS1) >= signed(i_DS2)) else 
 
-                '1' when (i_BGUOp = work.my_enums.BLTU and
+                '1' when (i_BGUOp = work.RISCV_types.BLTU and
                           unsigned(i_DS1) < unsigned(i_DS2)) else
 
-                '1' when (i_BGUOp = work.my_enums.BGEU and
+                '1' when (i_BGUOp = work.RISCV_types.BGEU and
                           unsigned(i_DS1) >= unsigned(i_DS2)) else
 
-                '1' when (i_BGUOp = work.my_enums.J) else
+                '1' when (i_BGUOp = work.RISCV_types.J) else
 
                 '0';
     

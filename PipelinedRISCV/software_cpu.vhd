@@ -11,7 +11,7 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-use work.my_enums.all;
+use work.RISCV_types.all;
 use work.my_records.all;
 
 -- TODO LIST:
@@ -465,9 +465,9 @@ begin
     g_CLK <= i_CLK and not s_Break;
     g_nCLK <= not g_CLK;
 
-    s_EffectiveAddr <= std_logic_vector(signed(mem_bufIPAddr) + signed(mem_bufImm)) when (mem_bufBranchMode = work.my_enums.JAL)  else
-                       std_logic_vector(signed(mem_bufDS1)    + signed(mem_bufImm)) when (mem_bufBranchMode = work.my_enums.JALR) else 
-                       std_logic_vector(signed(mem_bufIPAddr) + signed(mem_bufImm)) when (mem_bufBranchMode = work.my_enums.BCC)  else
+    s_EffectiveAddr <= std_logic_vector(signed(mem_bufIPAddr) + signed(mem_bufImm)) when (mem_bufBranchMode = work.RISCV_types.JAL)  else
+                       std_logic_vector(signed(mem_bufDS1)    + signed(mem_bufImm)) when (mem_bufBranchMode = work.RISCV_types.JALR) else 
+                       std_logic_vector(signed(mem_bufIPAddr) + signed(mem_bufImm)) when (mem_bufBranchMode = work.RISCV_types.BCC)  else
                        32x"0";
 
     SoftwareCPU_InstructionPointer: ip
@@ -899,10 +899,10 @@ begin
             o_Branch => s_Branch
         );
 
-    s_rfD <= mem_bufData     when (mem_bufRFSrc = work.my_enums.FROM_RAM)    else 
-             mem_bufF        when (mem_bufRFSrc = work.my_enums.FROM_ALU)    else 
-             mem_bufLinkAddr when (mem_bufRFSrc = work.my_enums.FROM_NEXTIP) else
-             mem_bufImm      when (mem_bufRFSrc = work.my_enums.FROM_IMM)    else
+    s_rfD <= mem_bufData     when (mem_bufRFSrc = work.RISCV_types.FROM_RAM)    else 
+             mem_bufF        when (mem_bufRFSrc = work.RISCV_types.FROM_ALU)    else 
+             mem_bufLinkAddr when (mem_bufRFSrc = work.RISCV_types.FROM_NEXTIP) else
+             mem_bufImm      when (mem_bufRFSrc = work.RISCV_types.FROM_IMM)    else
              (others => '0');
 
     SoftwareCPU_RegisterFile: regfile

@@ -14,8 +14,8 @@ use IEEE.std_logic_textio.all;  -- For logic types I/O
 library std;
 use std.env.all;                -- For hierarchical/external signals
 use std.textio.all;             -- For basic I/O
-use work.my_types.all;
-use work.my_enums.all;
+use work.RISCV_types.all;
+use work.RISCV_types.all;
 use work.my_records.all;
 
 entity tb_software_cpu is

@@ -1,8 +1,8 @@
 quit -sim
 
 vcom -2008 -work work Registers/my_records.vhd
-vcom -2008 -work work ../SingleCycleRISCV/my_enums.vhd
-vcom -2008 -work work ../Lab2RISCV/Lab2_submit/RegFile/my_types.vhd
+vcom -2008 -work work ../SingleCycleRISCV/RISCV_types.vhd
+vcom -2008 -work work ../Lab2RISCV/Lab2_submit/RegFile/RISCV_types.vhd
 
 vcom -2008 -work work ../Lab1/andg2.vhd
 vcom -2008 -work work ../Lab1/org2.vhd
