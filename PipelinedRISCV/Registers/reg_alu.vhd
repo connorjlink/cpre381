@@ -11,7 +11,7 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-use work.my_records.all;
+use work.RISCV_types.all;
 
 entity reg_alu is
     port(
@@ -19,11 +19,8 @@ entity reg_alu is
         i_RST      : in  std_logic;
         i_STALL    : in  std_logic;
 
-        i_F  : in  std_logic_vector(31 downto 0);
-        o_F  : out std_logic_vector(31 downto 0);
-
-        i_Co : in  std_logic;
-        o_Co : out std_logic
+        i_Signals  : in  work.RISCV_types.alu_record_t;
+        o_Signals  : out work.RISCV_types.alu_record_t
     );
 end reg_alu;
 
@@ -38,13 +35,13 @@ begin
             if i_STALL = '0' then
                 if rising_edge(i_CLK) then
                     -- alu register contents
-                    o_F  <= i_F;
-                    o_Co <= i_Co;
+                    o_Signals.F  <= i_Signals.F;
+                    o_Signals.Co <= i_Signals.Co;
                 end if;
             end if;
         else
-            o_F  <= (others => '0');
-            o_Co <= '0';
+            o_Signals.F  <= (others => '0');
+            o_Signals.Co <= '0';
         end if;
     end process;
 

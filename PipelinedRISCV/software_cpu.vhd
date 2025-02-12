@@ -14,228 +14,12 @@ use IEEE.numeric_std.all;
 use work.RISCV_types.all;
 use work.my_records.all;
 
--- TODO LIST:
--- pipeline stalling
-
--- more broadly take in all signals for each block and pass forward
--- i.e., take iMem assign all values to oMem
-
--- modern EG
--- wire up insn_bufIPAddr to driver_rawIPAddr
-
 entity software_cpu is
     port(i_CLK : in std_logic;
          i_RST : in std_logic);
 end software_cpu;
 
 architecture mixed of software_cpu is
-
-component ip is
-    generic(
-        -- Signal to hold the default data page address (according to RARS at least)
-        ResetAddress : std_logic_vector(31 downto 0) := 32x"00400000"
-    );
-    port(
-        i_CLK        : in  std_logic;
-        i_RST        : in  std_logic;
-        i_Load       : in  std_logic;
-        i_Addr       : in  std_logic_vector(31 downto 0);
-        i_nInc2_Inc4 : in  std_logic; -- 0 = inc2, 1 = inc4
-        i_Stall      : in  std_logic;
-        o_Addr       : out std_logic_vector(31 downto 0);
-        o_LinkAddr   : out std_logic_vector(31 downto 0)
-    );
-end component;
-
-component mem is
-	generic(
-		DATA_WIDTH : natural := 32;
-		ADDR_WIDTH : natural := 10
-	);
-	port(
-		clk		: in std_logic;
-		addr	: in std_logic_vector((ADDR_WIDTH-1) downto 0);
-		data	: in std_logic_vector((DATA_WIDTH-1) downto 0);
-		we		: in std_logic := '1';
-		q		: out std_logic_vector((DATA_WIDTH -1) downto 0)
-	);
-end component;
-
-component driver is
-    port(
-        i_CLK        : in  std_logic;
-        i_RST        : in  std_logic;
-        i_Insn       : in  std_logic_vector(31 downto 0);
-        i_MaskStall  : in  std_logic;
-        o_MemWrite   : out std_logic;
-        o_RegWrite   : out std_logic;
-        o_RFSrc      : out natural; 
-        o_ALUSrc     : out std_logic; -- 0 = register, 1 = immediate
-        o_ALUOp      : out natural;
-        o_BGUOp      : out natural;
-        o_LSWidth    : out natural;
-        o_RD         : out std_logic_vector(4 downto 0);
-        o_RS1        : out std_logic_vector(4 downto 0);
-        o_RS2        : out std_logic_vector(4 downto 0);
-        o_Imm        : out std_logic_vector(31 downto 0);
-        o_BranchMode : out natural;
-        o_Break      : out std_logic;
-        o_IsBranch   : out std_logic;
-        o_nInc2_Inc4 : out std_logic;
-        o_ipToALU    : out std_logic
-    );
-end component;
-
-component reg_pipeline is
-    generic(
-        STAGE        : natural
-    );
-    port(
-        i_CLK        : in  std_logic;
-        i_RST        : in  std_logic;
-        i_STALL      : in  std_logic;
-
-        i_Signals    : in  work.my_records.controls_t;
-        o_Signals    : out work.my_records.controls_t
-    );
-end component;
-
-component reg_insn is
-    port(
-        i_CLK      : in  std_logic;
-        i_RST      : in  std_logic;
-        i_STALL    : in  std_logic;
-
-        i_IPAddr   : in  std_logic_vector(31 downto 0);
-        o_IPAddr   : out std_logic_vector(31 downto 0);
-
-        i_LinkAddr : in  std_logic_vector(31 downto 0);
-        o_LinkAddr : out std_logic_vector(31 downto 0);
-
-        i_Insn     : in  std_logic_vector(31 downto 0);
-        o_Insn     : out std_logic_vector(31 downto 0)
-    );
-end component;
-
-component reg_driver is
-    port(
-        i_CLK      : in  std_logic;
-        i_RST      : in  std_logic;
-        i_STALL    : in  std_logic;
-
-        i_MemWrite   : in  std_logic;
-        o_MemWrite   : out std_logic;
-
-        i_RegWrite   : in  std_logic;
-        o_RegWrite   : out std_logic;
-
-        i_RFSrc      : in  natural;
-        o_RFSrc      : out natural;
-
-        i_ALUSrc     : in  std_logic;
-        o_ALUSrc     : out std_logic;
-
-        i_ALUOp      : in  natural;
-        o_ALUOp      : out natural;
-
-        i_BGUOp      : in  natural;
-        o_BGUOp      : out natural;
-
-        i_LSWidth    : in  natural;
-        o_LSWidth    : out natural;
-
-        i_RD         : in  std_logic_vector(4 downto 0);
-        o_RD         : out std_logic_vector(4 downto 0);
-
-        i_RS1        : in  std_logic_vector(4 downto 0);
-        o_RS1        : out std_logic_vector(4 downto 0);
-
-        i_RS2        : in  std_logic_vector(4 downto 0);
-        o_RS2        : out std_logic_vector(4 downto 0);
-
-        i_DS1        : in  std_logic_vector(31 downto 0);
-        o_DS1        : out std_logic_vector(31 downto 0);
-
-        i_DS2        : in  std_logic_vector(31 downto 0);
-        o_DS2        : out std_logic_vector(31 downto 0);
-
-        i_Imm        : in  std_logic_vector(31 downto 0);
-        o_Imm        : out std_logic_vector(31 downto 0);
-
-        i_BranchMode : in  natural;
-        o_BranchMode : out natural;
-
-        i_nInc2_Inc4 : in  std_logic;
-        o_nInc2_Inc4 : out std_logic;
-        
-        i_IPToALU    : in  std_logic;
-        o_IPToALU    : out std_logic
-    );
-end component;
-
-component reg_alu is
-    port(
-        i_CLK      : in  std_logic;
-        i_RST      : in  std_logic;
-        i_STALL    : in  std_logic;
-
-        i_F  : in  std_logic_vector(31 downto 0);
-        o_F  : out std_logic_vector(31 downto 0);
-
-        i_Co : in  std_logic;
-        o_Co : out std_logic
-    );
-end component;
-
-component reg_mem is
-    port(
-        i_CLK      : in  std_logic;
-        i_RST      : in  std_logic;
-        i_STALL    : in  std_logic;
-
-        i_Data     : in  std_logic_vector(31 downto 0);
-        o_Data     : out std_logic_vector(31 downto 0)
-    );
-end component;
-
-component bgu is
-    port(
-        i_CLK    : in  std_logic;
-        i_DS1    : in  std_logic_vector(31 downto 0);
-        i_DS2    : in  std_logic_vector(31 downto 0);
-        i_BGUOp  : in  natural;
-        o_Branch : out std_logic 
-    );
-end component;
-
-component alu is
-    generic(
-        -- Data width in bits
-        constant N : natural := 32
-    );
-    port(
-        i_A     : in  std_logic_vector(31 downto 0);
-        i_B     : in  std_logic_vector(31 downto 0);
-        i_ALUOp : in  natural;
-        o_F     : out std_logic_vector(31 downto 0);
-        o_Co    : out std_logic
-    );
-end component;
-
-component regfile is
-    port(
-        i_CLK : in  std_logic;
-        i_RST : in  std_logic;
-        i_RS1 : in  std_logic_vector(4 downto 0);
-        i_RS2 : in  std_logic_vector(4 downto 0);
-        i_RD  : in  std_logic_vector(4 downto 0);
-        i_WE  : in  std_logic;
-        i_D   : in  std_logic_vector(31 downto 0);
-        o_DS1 : out std_logic_vector(31 downto 0);
-        o_DS2 : out std_logic_vector(31 downto 0)
-    );
-end component;
-
 
 -- Signal to hold the ALU inputs and outputs
 signal s_aluA : std_logic_vector(31 downto 0);
@@ -470,7 +254,7 @@ begin
                        std_logic_vector(signed(mem_bufIPAddr) + signed(mem_bufImm)) when (mem_bufBranchMode = work.RISCV_types.BCC)  else
                        32x"0";
 
-    SoftwareCPU_InstructionPointer: ip
+    SoftwareCPU_InstructionPointer: entity work.ip
         generic MAP(
             ResetAddress => 32x"0" -- overriding this for testing purposes
         )
@@ -487,7 +271,7 @@ begin
             o_LinkAddr   => insn_rawLinkAddr
         );
 
-    SoftwareCPU_InstructionMemory: mem
+    SoftwareCPU_InstructionMemory: entity work.mem
         generic MAP(
             DATA_WIDTH => 32,
             ADDR_WIDTH => 10
@@ -506,7 +290,7 @@ begin
     driver_rawLinkAddr <= insn_bufLinkAddr;
     driver_rawInsn     <= insn_bufInsn;
 
-    SoftwareCPU_Insn_IR: reg_insn
+    SoftwareCPU_Insn_IR: entity work.reg_insn
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -524,7 +308,7 @@ begin
     -----------------------------------------------
 
 
-    SoftwareCPU_Driver: driver
+    SoftwareCPU_Driver: entity work.driver
         port MAP(
             i_CLK => g_CLK,
             i_RST => i_RST,
@@ -575,7 +359,7 @@ begin
     alu_rawDS1        <= driver_bufDS1;
     alu_rawDS2        <= driver_bufDS2;
 
-    SoftwareCPU_Driver_IR: reg_insn
+    SoftwareCPU_Driver_IR: entity work.reg_insn
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -591,7 +375,7 @@ begin
             o_Insn     => driver_bufInsn
         );
 
-    SoftwareCPU_Driver_DR: reg_driver
+    SoftwareCPU_Driver_DR: entity work.reg_driver
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -656,7 +440,7 @@ begin
               driver_bufDS2    when (driver_bufALUSrc = '0') else
               (others => '0');
 
-    SoftwareCPU_ALU: alu
+    SoftwareCPU_ALU: entity work.alu
         port MAP(
             i_A     => s_aluA,
             i_B     => s_aluB,
@@ -693,7 +477,7 @@ begin
     mem_rawF          <= alu_bufF;
     mem_rawCo         <= alu_bufCo;
 
-    SoftwareCPU_ALU_IR: reg_insn
+    SoftwareCPU_ALU_IR: entity work.reg_insn
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -709,7 +493,7 @@ begin
             o_Insn     => alu_bufInsn
         );
 
-    SoftwareCPU_ALU_DR: reg_driver
+    SoftwareCPU_ALU_DR: entity work.reg_driver
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -764,7 +548,7 @@ begin
             o_IPToALU    => alu_bufIPToALU
         );
 
-    SoftwareCPU_ALU_AR: reg_alu
+    SoftwareCPU_ALU_AR: entity work.reg_alu
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -779,7 +563,7 @@ begin
     -----------------------------------------------
 
 
-    SoftwareCPU_DataMemory: mem
+    SoftwareCPU_DataMemory: entity work.mem
         generic MAP(
             DATA_WIDTH => 32,
             ADDR_WIDTH => 10
@@ -795,7 +579,7 @@ begin
 
     -- Mem to RF stage Register(s)
     -----------------------------------------------
-    SoftwareCPU_MEM_IR: reg_insn
+    SoftwareCPU_MEM_IR: entity work.reg_insn
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -811,7 +595,7 @@ begin
             o_Insn     => mem_bufInsn
         );
 
-    SoftwareCPU_MEM_DR: reg_driver
+    SoftwareCPU_MEM_DR: entity work.reg_driver
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -866,7 +650,7 @@ begin
             o_IPToALU    => mem_bufIPToALU
         );
 
-    SoftwareCPU_MEM_AR: reg_alu
+    SoftwareCPU_MEM_AR: entity work.reg_alu
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -879,7 +663,7 @@ begin
             o_Co  => mem_bufCo
         );
 
-    SoftwareCPU_MEM_MR: reg_mem
+    SoftwareCPU_MEM_MR: entity work.reg_mem
         port MAP(
             i_CLK   => g_CLK,
             i_RST   => i_RST,
@@ -890,7 +674,7 @@ begin
         );
     -----------------------------------------------
 
-    g_CPUBranchUnit: bgu
+    g_CPUBranchUnit: entity work.bgu
         port MAP(
             i_CLK => g_CLK,
             i_DS1 => mem_bufDS1,
@@ -905,7 +689,7 @@ begin
              mem_bufImm      when (mem_bufRFSrc = work.RISCV_types.FROM_IMM)    else
              (others => '0');
 
-    SoftwareCPU_RegisterFile: regfile
+    SoftwareCPU_RegisterFile: entity work.regfile
         port MAP(
             i_CLK => g_nCLK, -- not obvious is this should be posedge or negedge
             i_RST => i_RST,

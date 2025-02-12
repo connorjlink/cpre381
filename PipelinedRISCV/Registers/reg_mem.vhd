@@ -11,7 +11,7 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-use work.my_records.all;
+use work.RISCV_types.all;
 
 entity reg_mem is
     port(
@@ -19,8 +19,8 @@ entity reg_mem is
         i_RST      : in  std_logic;
         i_STALL    : in  std_logic;
 
-        i_Data     : in  std_logic_vector(31 downto 0);
-        o_Data     : out std_logic_vector(31 downto 0)
+        i_Data     : in  work.RISCV_types.mem_record_t;
+        o_Data     : out work.RISCV_types.mem_record_t;
     );
 end reg_mem;
 
@@ -35,11 +35,11 @@ begin
             if i_STALL = '0' then
                 if rising_edge(i_CLK) then
                     -- alu register contents
-                    o_Data <= i_Data;
+                    o_Signals.Data <= i_Signals.Data;
                 end if;
             end if;
         else
-            o_Data <= (others => '0');
+            o_Signals.Data <= (others => '0');
         end if;
     end process;
 
