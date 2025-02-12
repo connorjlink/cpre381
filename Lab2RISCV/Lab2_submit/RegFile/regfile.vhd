@@ -11,7 +11,7 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-use work.my_types.all;
+use work.RISCV_types.all;
 
 entity regfile is
     port(i_CLK : in  std_logic;
