@@ -146,16 +146,33 @@ signal mem_insn_raw,      mem_insn_buf      : work.RISCV_types.insn_record_t;
 signal mem_driver_raw,    mem_driver_buf    : work.RISCV_types.driver_record_t;
 signal mem_alu_raw,       mem_alu_buf       : work.RISCV_types.alu_record_t;
 signal mem_mem_raw,       mem_mem_buf       : work.RISCV_types.mem_record_t;
+
+
+signal insn_Stall,   insn_Flush   : std_logic;
+signal driver_Stall, driver_Flush : std_logic;
+signal alu_Stall,    alu_Flush    : std_logic;
+signal mem_Stall,    mem_Flush    : std_logic;
 ----------------------------------------------------------------------------------
 
 
 begin
+
+    s_Ovfl <= '0'; -- RISC-V does not support overflow-checked arithmetic.
+    
+    s_gCLK  <= (not s_Halt) and iCLK;
+    s_ngCLK <= not s_gCLK;
+
+    s_BranchAddr <= std_logic_vector(signed(mem_insn_buf.IPAddr) + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.JAL)  else
+                    std_logic_vector(signed(mem_driver_buf.DS1)  + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.JALR) else 
+                    std_logic_vector(signed(mem_insn_buf.IPAddr) + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.BCC)  else
+                    (others => '0');
 
     -- TODO: This is required to be your final input to your instruction memory. This provides a feasible method to externally load the memory module which means that the synthesis tool must assume it knows nothing about the values stored in the instruction memory. If this is not included, much, if not all of the design is optimized out because the synthesis tool will believe the memory to be all zeros.
     with iInstLd select
         s_IMemAddr <= s_NextInstAddr when '0',
                       iInstAddr      when others;
 
+    -- FIXME: connect to new control signals
     IMem: mem
         generic map(
             ADDR_WIDTH => work.RISCV_types.ADDR_WIDTH,
@@ -169,6 +186,7 @@ begin
             q    => s_Inst
         );
   
+    -- FIXME: connect to new control signals
     DMem: mem
         generic map(
             ADDR_WIDTH => work.RISCV_types.ADDR_WIDTH,
@@ -177,18 +195,11 @@ begin
         port map(
             clk  => s_ngCLK, --iCLK, --ngCLK
             addr => s_DMemAddr(11 downto 2),
-            data => s_DMemData, -- ScaledDS2
+            data => s_DMemData,
             we   => s_DMemWr,
             q    => s_DMemOut
         );
 
-    s_Ovfl <= '0'; -- RISC-V does not support overflow-checked arithmetic.
-    
-    s_BranchAddr <= std_logic_vector(signed(mem_insn_buf.IPAddr) + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.JAL)  else
-                    std_logic_vector(signed(mem_driver_buf.DS1)  + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.JALR) else 
-                    std_logic_vector(signed(mem_insn_buf.IPAddr) + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.BCC)  else
-                    (others => '0');
-    
     -- IMPLEMENTATION STARTS HERE
 
     -----------------------------------------------------
@@ -199,8 +210,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => insn_Stall,
+            i_FLUSH => insn_Flush,
         
             i_Signals => insn_insn_raw,
             o_Signals => insn_insn_buf
@@ -219,8 +230,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => driver_Stall,
+            i_FLUSH => driver_Flush,
         
             i_Signals => driver_insn_raw,
             o_Signals => driver_insn_buf
@@ -230,8 +241,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => driver_Stall,
+            i_FLUSH => driver_Flush,
         
             i_Signals => driver_driver_raw,
             o_Signals => driver_driver_buf
@@ -251,8 +262,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => alu_Stall,
+            i_FLUSH => alu_Flush,
         
             i_Signals => alu_insn_raw,
             o_Signals => alu_insn_buf
@@ -262,8 +273,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => alu_Stall,
+            i_FLUSH => alu_Flush,
         
             i_Signals => alu_driver_raw,
             o_Signals => alu_driver_buf
@@ -273,8 +284,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => alu_Stall,
+            i_FLUSH => alu_Flush,
         
             i_Signals => alu_alu_raw,
             o_Signals => alu_alu_buf
@@ -296,8 +307,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => mem_Stall,
+            i_FLUSH => mem_Flush,
         
             i_Signals => mem_insn_raw,
             o_Signals => mem_insn_buf
@@ -307,8 +318,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => mem_Stall,
+            i_FLUSH => mem_Flush,
         
             i_Signals => mem_driver_raw,
             o_Signals => mem_driver_buf
@@ -318,8 +329,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => mem_Stall,
+            i_FLUSH => mem_Flush,
         
             i_Signals => mem_alu_raw,
             o_Signals => mem_alu_buf
@@ -330,8 +341,8 @@ begin
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
-            i_STALL => -- FIXME:
-            i_FLUSH => -- FIXME:
+            i_STALL => mem_Stall,
+            i_FLUSH => mem_Flush,
         
             i_Signals => mem_mem_raw,
             o_Signals => mem_mem_buf
@@ -340,34 +351,38 @@ begin
     -----------------------------------------------------
 
 
-    g_InstructionPointerUnit: entity work.ip
+    SoftwareCPU_IP: entity work.ip
         generic MAP(
             ResetAddress => 32x"0"
         )
         port MAP(
-            i_CLK        => iCLK, -- FIXME: i_CLK or s_gCLK
+            i_CLK        => iCLK, -- TODO: i_CLK or s_gCLK
             i_RST        => iRST,
+            i_Stall      => insn_Stall, -- FIXME:
             i_Load       => s_Branch,
-            i_Addr       => s_BranchAddr,
-            i_nInc2_Inc4 => s_dnInc2_Inc4,
-            i_Stall      => '0',
+            i_Addr       => s_BranchAddr, -- FIXME:
+            -- BELOW: might be 1 pipeline stage ahead (one cycle off)
+            i_nInc2_Inc4 => driver_driver_raw.nInc2_Inc4, -- FIXME: is this too late in the pipeline to decide how far to stride each instruction?
             o_Addr       => s_IPAddr,
-            o_LinkAddr   => s_NextInstAddr -- replaced from s_LinkAddr, for it represents the address to which to link should a jal/jalr take place
+            -- BELOW:replaced from s_LinkAddr, for it represents the address to which to link should a jal/jalr take place
+            o_LinkAddr   => s_NextInstAddr 
         );
+    insn_insn_raw.IPAddr   <= s_IPAddr;
+    insn_insn_raw.LinkAddr <= s_NextInstAddr;
+    insn_insn_raw.Insn     <= s_Inst;
 
-    s_gCLK <= (not s_Halt) and iCLK;
-    s_ngCLK <= not s_gCLK;
 
-    g_CPUBranchUnit: entity work.bgu
+    SoftwareCPU_BGU: entity work.bgu
         port MAP(
             i_CLK    => s_gCLK,
-            i_DS1    => s_DS1,
-            i_DS2    => s_DS2,
-            i_BGUOp  => s_dBGUOp,
+            i_DS1    => mem_driver_buf.DS1, --s_DS1,
+            i_DS2    => mem_driver_buf.DS2, --s_DS2,
+            i_BGUOp  => mem_Driver_buf.BGUOp, --s_dBGUOp,
             o_Branch => s_Branch
         );
 
-    g_CPUDriver: entity work.driver
+
+    SoftwareCPU_Driver: entity work.driver
         port MAP(
             i_CLK        => s_gCLK,
             i_RST        => iRST,
@@ -392,7 +407,8 @@ begin
             o_IPToALU    => s_dIPToALU
         );
 
-    g_CPURegisterFile: entity work.regfile
+
+    SoftwareCPU_RegisterFile: entity work.regfile
         port MAP(
             i_CLK => s_ngCLK,
             --i_CLK => s_gCLK, -- needs to be written on the negedge
@@ -406,23 +422,26 @@ begin
             o_DS2 => s_DS2
         );
 
-    s_aluA <= s_IMemAddr when (s_dIPToALU = '1') else
-              s_DS1;
 
-    s_aluB <= s_DS2 when (s_dALUSrc = '0') else
-              s_dImm;
+    s_aluA <= driver_insn_buf.IPAddr when (driver_driver_buf.IPToALU = '1') else
+              driver_driver_buf.DS1  when (driver_driver_buf.IPToALU = '0') else
+              (others => '0');
 
-    g_CPUALU: entity work.alu
+    s_aluB <= driver_driver_buf.Imm when (driver_driver_buf.ALUSrc = '1') else
+              driver_driver_buf.DS2 when (driver_driver_buf.ALUSrc = '0') else
+              (others => '0');
+
+    SoftwareCPU_ALU: entity work.alu
         port MAP(
             i_A     => s_aluA,
             i_B     => s_aluB,
-            i_ALUOp => s_dALUOp,
-            o_F     => s_aluF,
-            o_Co    => s_oCo
+            i_ALUOp => alu_alu_raw.ALUOp,
+            o_F     => alu_alu_raw.F,
+            o_Co    => alu_alu_raw.Co
         );
 
-    oALUOut <= s_aluF;
-    s_DMemAddr <= s_aluF;
+    oALUOut <= alu_alu_raw.F;
+    s_DMemAddr <= alu_alu_raw.F;
 
 
     -- NOTE: store instructions do not sign-extend
