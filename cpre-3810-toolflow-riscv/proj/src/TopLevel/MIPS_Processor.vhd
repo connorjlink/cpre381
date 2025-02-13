@@ -74,31 +74,31 @@ end component;
 
 
 -- Signals to hold memory inputs and outputs
-signal s_mDataScaled : std_logic_vector(31 downto 0);
+signal s_DMemDataExtended : std_logic_vector(31 downto 0);
 
 -- Signals to hold the intermediate outputs from the register file
 signal s_DS1 : std_logic_vector(31 downto 0);
 signal s_DS2 : std_logic_vector(31 downto 0);
 
 -- Signal to hold the ALU inputs and outputs
-signal s_aluA : std_logic_vector(31 downto 0);
-signal s_aluB : std_logic_vector(31 downto 0);
-signal s_aluF : std_logic_vector(31 downto 0);
-signal s_oCo  : std_logic;
+signal s_ALUOperand1 : std_logic_vector(31 downto 0);
+signal s_ALUOperand2 : std_logic_vector(31 downto 0);
+signal s_ALUResult   : std_logic_vector(31 downto 0);
+signal s_ALUCarry    : std_logic;
 
 -- Signals to hold the control lines from the driver
-signal s_dRFSrc      : natural; -- 0 = ALU, 1 = memory, 2 = IP+4
-signal s_dALUSrc     : std_logic;
-signal s_dALUOp      : natural;
-signal s_dBGUOp      : natural;
-signal s_dLSWidth    : natural;
-signal s_dRS1        : std_logic_vector(4 downto 0);
-signal s_dRS2        : std_logic_vector(4 downto 0);
-signal s_dImm        : std_logic_vector(31 downto 0);
-signal s_dBranchMode : natural;
-signal s_dnInc2_Inc4 : std_logic; 
-signal s_dnZero_Sign : std_logic;
-signal s_dIPToALU    : std_logic;
+signal s_RFSrc      : natural; -- 0 = ALU, 1 = memory, 2 = IP+4
+signal s_ALUSrc     : std_logic;
+signal s_ALUOp      : natural;
+signal s_BGUOp      : natural;
+signal s_LSWidth    : natural;
+signal s_RS1        : std_logic_vector(4 downto 0);
+signal s_RS2        : std_logic_vector(4 downto 0);
+signal s_Imm        : std_logic_vector(31 downto 0);
+signal s_BranchMode : natural;
+signal s_IPStride   : std_logic; -- 0 = inc2, 1 = inc4
+signal s_SignExtend : std_logic; -- 0 = zero extend, 1 = sign extend
+signal s_IPToALU    : std_logic;
 
 -- Signals to handle the output of the BGU
 signal s_Branch : std_logic;
@@ -112,10 +112,6 @@ signal s_BranchAddr : std_logic_vector(31 downto 0);
 
 -- Signal to output the contents of the instruction pointer
 signal s_IPAddr : std_logic_vector(31 downto 0);
-signal s_IPAddrTMP : std_logic_vector(31 downto 0);
-signal s_NextInstAddrTMP : std_logic_vector(31 downto 0);
-
-
 
 begin
 
@@ -152,25 +148,24 @@ begin
 
     s_Ovfl <= '0'; -- RISC-V does not support overflow-checked arithmetic.
     
-    s_BranchAddr <= std_logic_vector(signed(s_IPAddrTMP) + signed(s_dImm))                 when (s_dBranchMode = work.RISCV_types.JAL)  else
-                    std_logic_vector(signed(s_DS1)       + signed(s_dImm) - 32x"00400000") when (s_dBranchMode = work.RISCV_types.JALR) else 
-                    std_logic_vector(signed(s_IPAddrTMP) + signed(s_dImm))                 when (s_dBranchMode = work.RISCV_types.BCC)  else
+    s_BranchAddr <= std_logic_vector(signed(s_IPAddr) + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JAL_OR_BCC) else
+                    std_logic_vector(signed(s_DS1)    + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JALR)       else 
                     (others => '0');
     
     g_InstructionPointerUnit: entity work.ip
+        generic MAP(
+            ResetAddress => 32x"00400000"
+        )
         port MAP(
             i_CLK        => iCLK, -- FIXME: i_CLK or s_gCLK
             i_RST        => iRST,
             i_Load       => s_Branch,
             i_Addr       => s_BranchAddr,
-            i_nInc2_Inc4 => s_dnInc2_Inc4,
+            i_nInc2_Inc4 => s_IPStride,
             i_Stall      => '0',
-            o_Addr       => s_IPAddrTMP,
-            o_LinkAddr   => s_NextInstAddrTMP -- replaced from s_LinkAddr, for it represents the address to which to link should a jal/jalr take place
+            o_Addr       => s_IPAddr,
+            o_LinkAddr   => s_NextInstAddr -- replaced from s_LinkAddr, for it represents the address to which to link should a jal/jalr take place
         );
-
-    s_IPAddr <= std_logic_vector(unsigned(s_IPAddrTMP) + 32x"00400000");
-    s_NextInstAddr <= std_logic_vector(unsigned(s_NextInstAddrTMP) + 32x"00400000");
 
     s_gCLK <= (not s_Halt) and iCLK;
     s_ngCLK <= not s_gCLK;
@@ -180,7 +175,7 @@ begin
             i_CLK    => s_gCLK,
             i_DS1    => s_DS1,
             i_DS2    => s_DS2,
-            i_BGUOp  => s_dBGUOp,
+            i_BGUOp  => s_BGUOp,
             o_Branch => s_Branch
         );
 
@@ -192,21 +187,21 @@ begin
             i_MaskStall  => '0', -- TODO: this should not affect this single cycle model
             o_MemWrite   => s_DMemWr,
             o_RegWrite   => s_RegWr,
-            o_RFSrc      => s_dRFSrc,
-            o_ALUSrc     => s_dALUSrc,
-            o_ALUOp      => s_dALUOp,
-            o_BGUOp      => s_dBGUOp,
-            o_LSWidth    => s_dLSWidth,
+            o_RFSrc      => s_RFSrc,
+            o_ALUSrc     => s_ALUSrc,
+            o_ALUOp      => s_ALUOp,
+            o_BGUOp      => s_BGUOp,
+            o_LSWidth    => s_LSWidth,
             o_RD         => s_RegWrAddr,
-            o_RS1        => s_dRS1,
-            o_RS2        => s_dRS2, 
-            o_Imm        => s_dImm,
-            o_BranchMode => s_dBranchMode,
+            o_RS1        => s_RS1,
+            o_RS2        => s_RS2, 
+            o_Imm        => s_Imm,
+            o_BranchMode => s_BranchMode,
             o_Break      => s_Halt, -- FIXME: open
             o_IsBranch   => open,
-            o_nInc2_Inc4 => s_dnInc2_Inc4,
-            o_nZero_Sign => s_dnZero_Sign,
-            o_IPToALU    => s_dIPToALU
+            o_nInc2_Inc4 => s_IPStride,
+            o_nZero_Sign => s_SignExtend,
+            o_IPToALU    => s_IPToALU
         );
 
     g_CPURegisterFile: entity work.regfile
@@ -214,8 +209,8 @@ begin
             i_CLK => s_ngCLK,
             --i_CLK => s_gCLK, -- needs to be written on the negedge
             i_RST => iRST,
-            i_RS1 => s_dRS1,
-            i_RS2 => s_dRS2,
+            i_RS1 => s_RS1,
+            i_RS2 => s_RS2,
             i_RD  => s_RegWrAddr,
             i_WE  => s_RegWr,
             i_D   => s_RegWrData,
@@ -223,44 +218,43 @@ begin
             o_DS2 => s_DS2
         );
 
-    s_aluA <= s_IMemAddr when (s_dIPToALU = '1') else
-              s_DS1;
+    s_ALUOperand1 <= s_IMemAddr when (s_IPToALU = '1') else
+                     s_DS1;
 
-    s_aluB <= s_DS2 when (s_dALUSrc = '0') else
-              s_dImm;
+    s_ALUOperand2 <= s_DS2 when (s_ALUSrc = '0') else
+                     s_Imm;
 
     g_CPUALU: entity work.alu
         port MAP(
-            i_A     => s_aluA,
-            i_B     => s_aluB,
-            i_ALUOp => s_dALUOp,
-            o_F     => s_aluF,
-            o_Co    => s_oCo
+            i_A     => s_ALUOperand1,
+            i_B     => s_ALUOperand2,
+            i_ALUOp => s_ALUOp,
+            o_F     => s_ALUResult,
+            o_Co    => s_ALUCarry
         );
 
-    oALUOut <= s_aluF;
-    s_DMemAddr <= s_aluF;
+    oALUOut <= s_ALUResult;
+    s_DMemAddr <= s_ALUResult;
 
-
-    -- NOTE: store instructions do not sign-extend
-    s_DMemData <= std_logic_vector(resize(unsigned(s_DS2(7  downto 0)), s_DMemData'length)) when (s_dLSWidth = work.RISCV_types.BYTE) else
-                  std_logic_vector(resize(unsigned(s_DS2(15 downto 0)), s_DMemData'length)) when (s_dLSWidth = work.RISCV_types.HALF) else
-                  std_logic_vector(resize(unsigned(s_DS2(31 downto 0)), s_DMemData'length)) when (s_dLSWidth = work.RISCV_types.WORD) else
+    -- NOTE: store instructions do not actually extend any contents in RISC-V.
+    -- Since we are using word-addressable RAM, though, we need to zero-extend to the correct width to preserve unsigned value for storage.
+    s_DMemData <= std_logic_vector(resize(unsigned(s_DS2(7  downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.BYTE) else
+                  std_logic_vector(resize(unsigned(s_DS2(15 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.HALF) else
+                  std_logic_vector(resize(unsigned(s_DS2(31 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.WORD) else
                   (others => '0');
 
-    s_mDataScaled <= std_logic_vector(resize(unsigned(s_DMemOut(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.BYTE and s_dnZero_Sign = '0') else
-                     std_logic_vector(resize(  signed(s_DMemOut(7  downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.BYTE and s_dnZero_Sign = '1') else
-                     std_logic_vector(resize(unsigned(s_DMemOut(15 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.HALF and s_dnZero_Sign = '0') else
-                     std_logic_vector(resize(  signed(s_DMemOut(15 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.HALF and s_dnZero_Sign = '1') else
-                     std_logic_vector(resize(unsigned(s_DMemOut(31 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.WORD and s_dnZero_Sign = '0') else
-                     std_logic_vector(resize(  signed(s_DMemOut(31 downto 0)), s_mDataScaled'length)) when (s_dLSWidth = work.RISCV_types.WORD and s_dnZero_Sign = '1') else
-                     (others => '0');
+    s_DMemDataExtended <= std_logic_vector(resize(unsigned(s_DMemOut(7  downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.BYTE and s_SignExtend = '0') else
+                          std_logic_vector(resize(  signed(s_DMemOut(7  downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.BYTE and s_SignExtend = '1') else
+                          std_logic_vector(resize(unsigned(s_DMemOut(15 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.HALF and s_SignExtend = '0') else
+                          std_logic_vector(resize(  signed(s_DMemOut(15 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.HALF and s_SignExtend = '1') else
+                          std_logic_vector(resize(unsigned(s_DMemOut(31 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.WORD and s_SignExtend = '0') else
+                          std_logic_vector(resize(  signed(s_DMemOut(31 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.WORD and s_SignExtend = '1') else
+                          (others => '0');
 
-
-    s_RegWrData <= s_mDataScaled  when (s_dRFSrc = work.RISCV_types.FROM_RAM)    else 
-                   s_aluF         when (s_dRFSrc = work.RISCV_types.FROM_ALU)    else 
-                   s_NextInstAddr when (s_dRFSrc = work.RISCV_types.FROM_NEXTIP) else
-                   s_dImm         when (s_dRFSrc = work.RISCV_types.FROM_IMM)    else
+    s_RegWrData <= s_DMemDataExtended when (s_RFSrc = work.RISCV_types.FROM_RAM)    else 
+                   s_ALUResult        when (s_RFSrc = work.RISCV_types.FROM_ALU)    else 
+                   s_NextInstAddr     when (s_RFSrc = work.RISCV_types.FROM_NEXTIP) else
+                   s_Imm              when (s_RFSrc = work.RISCV_types.FROM_IMM)    else
                    (others => '0');
 
 end structure;

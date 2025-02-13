@@ -54,10 +54,9 @@ constant FROM_ALU    : natural := 2;
 constant FROM_NEXTIP : natural := 3;
 constant FROM_IMM    : natural := 4;
 
--- Corresponding to each branch mode type (for effective address calculation)
-constant JAL  : natural := 1;
-constant JALR : natural := 2;
-constant BCC  : natural := 3;
+-- Corresponding to each branch mode type (for correct effective address calculation)
+constant JAL_OR_BCC : natural := 1;
+constant JALR       : natural := 2;
 
 
 -- Record type declarations for the pipeline setup
