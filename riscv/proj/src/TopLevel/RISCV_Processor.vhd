@@ -20,7 +20,7 @@ use IEEE.numeric_std.all;
 library work;
 use work.RISCV_types.all;
 
-entity MIPS_Processor is
+entity RISCV_Processor is
     generic(
         N : integer := work.RISCV_types.DATA_WIDTH
     );
@@ -32,9 +32,9 @@ entity MIPS_Processor is
         iInstExt  : in  std_logic_vector(N-1 downto 0);
         oALUOut   : out std_logic_vector(N-1 downto 0) -- TODO: Hook this up to the output of the ALU. It is important for synthesis that you have this output that can effectively be impacted by all other components so they are not optimized away.
     ); 
-end MIPS_Processor;
+end RISCV_Processor;
 
-architecture structure of MIPS_Processor is
+architecture structure of RISCV_Processor is
 
 -- Required data memory signals
 signal s_DMemWr       : std_logic;                      -- TODO: use this signal as the final active high data memory write enable signal
@@ -77,8 +77,8 @@ end component;
 signal s_DMemDataExtended : std_logic_vector(31 downto 0);
 
 -- Signals to hold the intermediate outputs from the register file
-signal s_DS1 : std_logic_vector(31 downto 0);
-signal s_DS2 : std_logic_vector(31 downto 0);
+signal s_RS1Data : std_logic_vector(31 downto 0);
+signal s_RS2Data : std_logic_vector(31 downto 0);
 
 -- Signal to hold the ALU inputs and outputs
 signal s_ALUOperand1 : std_logic_vector(31 downto 0);
@@ -102,16 +102,16 @@ signal s_IPToALU    : std_logic;
 
 -- Signals to handle the output of the BGU
 signal s_Branch : std_logic;
+-- Signals to hold the computed memory instruction address input to the IP
+signal s_BranchAddr : std_logic_vector(31 downto 0);
+-- Signal to output the contents of the instruction pointer
+signal s_IPAddr : std_logic_vector(31 downto 0);
 
 -- Signal to hold the modified clock
 signal s_gCLK  : std_logic;
 signal s_ngCLK : std_logic;
 
--- Signals to hold the computed memory instruction address input to the IP
-signal s_BranchAddr : std_logic_vector(31 downto 0);
-
--- Signal to output the contents of the instruction pointer
-signal s_IPAddr : std_logic_vector(31 downto 0);
+signal s_IPClk, s_IPClkN : std_logic;
 
 begin
 
@@ -126,7 +126,7 @@ begin
             DATA_WIDTH => N
         )
         port map(
-            clk  => s_gCLK, -- gCLK
+            clk  => iCLK, -- gCLK
             addr => s_IPAddr(11 downto 2),
             data => iInstExt,
             we   => iInstLd,
@@ -139,7 +139,7 @@ begin
             DATA_WIDTH => N
         )
         port map(
-            clk  => s_ngCLK, --iCLK, --ngCLK
+            clk  => iCLK, --ngCLK
             addr => s_DMemAddr(11 downto 2),
             data => s_DMemData, -- ScaledDS2
             we   => s_DMemWr,
@@ -148,16 +148,19 @@ begin
 
     s_Ovfl <= '0'; -- RISC-V does not support overflow-checked arithmetic.
     
-    s_BranchAddr <= std_logic_vector(signed(s_IPAddr) + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JAL_OR_BCC) else
-                    std_logic_vector(signed(s_DS1)    + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JALR)       else 
+    s_BranchAddr <= std_logic_vector(signed(s_IPAddr)  + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JAL_OR_BCC) else
+                    std_logic_vector(signed(s_RS1Data) + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JALR)       else 
                     (others => '0');
-    
+
+    s_IPClkN <= (not iRST) and iCLK;
+    s_IPClk <= (not s_IPClkN);
+
     g_InstructionPointerUnit: entity work.ip
         generic MAP(
             ResetAddress => 32x"00400000"
         )
         port MAP(
-            i_CLK        => iCLK, -- FIXME: i_CLK or s_gCLK
+            i_CLK        => iCLK, -- FIXME: iCLK or s_gCLK or s_IPClk
             i_RST        => iRST,
             i_Load       => s_Branch,
             i_Addr       => s_BranchAddr,
@@ -172,16 +175,16 @@ begin
 
     g_CPUBranchUnit: entity work.bgu
         port MAP(
-            i_CLK    => s_gCLK,
-            i_DS1    => s_DS1,
-            i_DS2    => s_DS2,
+            i_CLK    => iCLK, --s_gCLK,
+            i_DS1    => s_RS1Data,
+            i_DS2    => s_RS2Data,
             i_BGUOp  => s_BGUOp,
             o_Branch => s_Branch
         );
 
     g_CPUDriver: entity work.driver
         port MAP(
-            i_CLK        => s_gCLK,
+            i_CLK        => iCLK, --s_gCLK,
             i_RST        => iRST,
             i_Insn       => s_Inst,
             i_MaskStall  => '0', -- TODO: this should not affect this single cycle model
@@ -206,22 +209,23 @@ begin
 
     g_CPURegisterFile: entity work.regfile
         port MAP(
-            i_CLK => s_ngCLK,
-            --i_CLK => s_gCLK, -- needs to be written on the negedge
+            --i_CLK => s_ngCLK,
+            --i_CLK => s_gCLK, -- FIXME: might need to be written on the negedge
+            i_CLK => iCLK, --s_regClk,
             i_RST => iRST,
             i_RS1 => s_RS1,
             i_RS2 => s_RS2,
             i_RD  => s_RegWrAddr,
             i_WE  => s_RegWr,
             i_D   => s_RegWrData,
-            o_DS1 => s_DS1,
-            o_DS2 => s_DS2
+            o_DS1 => s_RS1Data,
+            o_DS2 => s_RS2Data
         );
 
-    s_ALUOperand1 <= s_IMemAddr when (s_IPToALU = '1') else
-                     s_DS1;
+    s_ALUOperand1 <= s_IPAddr when (s_IPToALU = '1') else
+                     s_RS1Data;
 
-    s_ALUOperand2 <= s_DS2 when (s_ALUSrc = '0') else
+    s_ALUOperand2 <= s_RS2Data when (s_ALUSrc = '0') else
                      s_Imm;
 
     g_CPUALU: entity work.alu
@@ -238,9 +242,9 @@ begin
 
     -- NOTE: store instructions do not actually extend any contents in RISC-V.
     -- Since we are using word-addressable RAM, though, we need to zero-extend to the correct width to preserve unsigned value for storage.
-    s_DMemData <= std_logic_vector(resize(unsigned(s_DS2(7  downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.BYTE) else
-                  std_logic_vector(resize(unsigned(s_DS2(15 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.HALF) else
-                  std_logic_vector(resize(unsigned(s_DS2(31 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.WORD) else
+    s_DMemData <= std_logic_vector(resize(unsigned(s_RS2Data(7  downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.BYTE) else
+                  std_logic_vector(resize(unsigned(s_RS2Data(15 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.HALF) else
+                  std_logic_vector(resize(unsigned(s_RS2Data(31 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.WORD) else
                   (others => '0');
 
     s_DMemDataExtended <= std_logic_vector(resize(unsigned(s_DMemOut(7  downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.BYTE and s_SignExtend = '0') else

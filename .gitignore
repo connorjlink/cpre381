@@ -6,5 +6,15 @@
 *.wlf
 **/work/
 
+*.zip
+*.pdf
+
 rars1_6.jar
 boilerplate_mips/
+old-toolflow_mips/
+
+riscv/*.md
+riscv/internal/
+riscv/output/
+riscv/docs/
+

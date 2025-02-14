@@ -209,7 +209,7 @@ begin
                     v_BGUOp := work.RISCV_types.J;
                     v_RegWrite := '1';
                     v_RFSrc := work.RISCV_types.FROM_NEXTIP;
-                    v_BranchMode := work.RISCV_types.JAL;
+                    v_BranchMode := work.RISCV_types.JAL_OR_BCC;
                     v_IsBranch := '1';
                     report "jal" severity note;
 
@@ -454,7 +454,7 @@ begin
                     v_Imm := s_extbImm;
                     -- v_ALUSrc := '1';
                     -- v_ipToALU := '1';
-                    v_BranchMode := work.RISCV_types.BCC;
+                    v_BranchMode := work.RISCV_types.JAL_OR_BCC;
                     v_IsBranch := '1';
 
                     case s_decFunc3 is 
@@ -509,8 +509,19 @@ begin
                     v_RegWrite := '1';
                     report "auipc" severity note;
 
-                -- NOTE: `0001111` - "fence" not required by RV32I
-                -- NOTE: `1110011` - "ecall/ebreak" not required by RV32I
+                when 7b"0001111" => -- fence
+                    -- since this core is running scalar, in-order, and single-tasking, this can safely be left as a NOP
+                    report "fence" severity note;
+
+                when 7b"1110011" => -- ecall/ebreak
+                    if i_Insn = 32b"00000000000100000000000001110011" then
+                        -- ebreak
+                        v_Break := '1';
+                        report "ebreak" severity note; 
+                    else
+                        -- ecall
+                        report "ecall" severity note;
+                    end if;
 
                 when others =>
                     v_Break := '1';
