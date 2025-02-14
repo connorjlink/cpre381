@@ -202,7 +202,6 @@ begin
             v_ipToALU    := '0';
 
             case s_decOpcode is 
-                -- TODO: linking jump
                 when 7b"1101111" => -- J-Format
                     -- jal    - rd <= linkAddr
                     v_Imm := s_extjImm;
@@ -210,7 +209,8 @@ begin
                     v_RegWrite := '1';
                     v_RFSrc := work.RISCV_types.FROM_NEXTIP;
                     v_BranchMode := work.RISCV_types.JAL_OR_BCC;
-                    v_IsBranch := '1';
+                    -- FIXME: should these also set the branch flag or just Bcc
+                    --v_IsBranch := '1';
                     report "jal" severity note;
 
                 when 7b"1100111" => -- I-Format
@@ -220,7 +220,8 @@ begin
                     v_RegWrite := '1';
                     v_RFSrc := work.RISCV_types.FROM_NEXTIP;
                     v_BranchMode := work.RISCV_types.JALR;
-                    v_IsBranch := '1';
+                    -- FIXME: should these also set the branch flag or just Bcc
+                    --v_IsBranch := '1';
                     report "jalr" severity note;
 
                 when 7b"0010011" => -- I-format
@@ -330,15 +331,14 @@ begin
                             v_LSWidth := work.RISCV_types.HALF;
                             report "lhu" severity note;
 
-                        -- NOTE: unoffical (since not necessary), but not illegal
+                        -- NOTE: unoffical instruction for RV32I
                         when 3b"110" =>
                             -- lwu  - 110
                             v_nZeroSign := '0';
                             v_LSWidth := work.RISCV_types.WORD;
                             report "lwu" severity note;
 
-                        -- NOTE: unoffical (since not necessary), but not illegal
-                        -- RV64I
+                        -- NOTE: unoffical instruction for RV64I
                         --when 3b"111" =>
                         --    -- ldu  - 111
                         --    v_nZeroSign := '0';
@@ -547,7 +547,7 @@ begin
         -- NOTE: this is taking place after setting the control signals to override anything else
         if i_MaskStall = '1' then
             v_IsBranch := '0';
-            report "BRANCHED - PIPELINE STALL RESCINDED" severity note;
+            report "PIPELINE STALL RESCINDED" severity note;
         end if;
 
         o_IsBranch   <= v_IsBranch;

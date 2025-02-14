@@ -375,6 +375,8 @@ begin
     SoftwareCPU_BGU: entity work.bgu
         port MAP(
             i_CLK    => s_gCLK,
+            -- these signals might need to be hooked up to earlier in the pipeline
+            -- the like the raw output from the driver or something in order to later forward ht evlaue that we n eed
             i_DS1    => mem_driver_buf.DS1, --s_DS1,
             i_DS2    => mem_driver_buf.DS2, --s_DS2,
             i_BGUOp  => mem_Driver_buf.BGUOp, --s_dBGUOp,

@@ -111,8 +111,6 @@ signal s_IPAddr : std_logic_vector(31 downto 0);
 signal s_gCLK  : std_logic;
 signal s_ngCLK : std_logic;
 
-signal s_IPClk, s_IPClkN : std_logic;
-
 begin
 
     -- TODO: This is required to be your final input to your instruction memory. This provides a feasible method to externally load the memory module which means that the synthesis tool must assume it knows nothing about the values stored in the instruction memory. If this is not included, much, if not all of the design is optimized out because the synthesis tool will believe the memory to be all zeros.
@@ -152,15 +150,12 @@ begin
                     std_logic_vector(signed(s_RS1Data) + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JALR)       else 
                     (others => '0');
 
-    s_IPClkN <= (not iRST) and iCLK;
-    s_IPClk <= (not s_IPClkN);
-
     g_InstructionPointerUnit: entity work.ip
         generic MAP(
             ResetAddress => 32x"00400000"
         )
         port MAP(
-            i_CLK        => iCLK, -- FIXME: iCLK or s_gCLK or s_IPClk
+            i_CLK        => iCLK, -- FIXME: s_gCLK or iCLK?
             i_RST        => iRST,
             i_Load       => s_Branch,
             i_Addr       => s_BranchAddr,
@@ -200,7 +195,7 @@ begin
             o_RS2        => s_RS2, 
             o_Imm        => s_Imm,
             o_BranchMode => s_BranchMode,
-            o_Break      => s_Halt, -- FIXME: open
+            o_Break      => s_Halt, --open,
             o_IsBranch   => open,
             o_nInc2_Inc4 => s_IPStride,
             o_nZero_Sign => s_SignExtend,
@@ -209,9 +204,7 @@ begin
 
     g_CPURegisterFile: entity work.regfile
         port MAP(
-            --i_CLK => s_ngCLK,
-            --i_CLK => s_gCLK, -- FIXME: might need to be written on the negedge
-            i_CLK => iCLK, --s_regClk,
+            i_CLK => iCLK, -- FIXME: shouldn't this be written on the negative edge to avoid a data race? (s_ngCLK)
             i_RST => iRST,
             i_RS1 => s_RS1,
             i_RS2 => s_RS2,
