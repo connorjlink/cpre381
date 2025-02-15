@@ -34,9 +34,9 @@ entity driver is
         o_BranchMode : out natural;
         o_Break      : out std_logic;
         o_IsBranch   : out std_logic;
-        o_nInc2_Inc4 : out std_logic;
+        o_IPStride   : out std_logic;
         o_IPToALU    : out std_logic;
-        o_nZero_Sign : out std_logic
+        o_SignExtend : out std_logic
     );
 end driver;
 
@@ -96,8 +96,8 @@ signal s_exthImm : std_logic_vector(31 downto 0);
 begin
 
     -- 4-byte instructions are indicated by a 11 in the two least-significant bits of the opcode
-    o_nInc2_Inc4 <= '1' when s_decOpcode(1 downto 0) = 2b"11" else
-                    '0';
+    o_IPStride <= '1' when s_decOpcode(1 downto 0) = 2b"11" else
+                  '0';
 
     g_DriverExtenderI: ext -- I-Format
         generic MAP(
@@ -106,7 +106,7 @@ begin
         )
         port MAP(
             i_D          => s_deciImm,
-            i_nZero_Sign => o_nZero_Sign,
+            i_nZero_Sign => o_SignExtend,
             o_Q          => s_extiImm
         );
 
@@ -117,7 +117,7 @@ begin
         )
         port MAP(
             i_D          => s_decsImm,
-            i_nZero_Sign => o_nZero_Sign,
+            i_nZero_Sign => o_SignExtend,
             o_Q          => s_extsImm
         );
 
@@ -128,7 +128,7 @@ begin
         )
         port MAP(
             i_D          => s_decbImm,
-            i_nZero_Sign => o_nZero_Sign,
+            i_nZero_Sign => o_SignExtend,
             o_Q          => s_extbImm
         );
 
@@ -143,7 +143,7 @@ begin
         )
         port MAP(
             i_D          => s_decjImm,
-            i_nZero_Sign => o_nZero_Sign,
+            i_nZero_Sign => o_SignExtend,
             o_Q          => s_extjImm
         );
 
@@ -552,7 +552,7 @@ begin
 
         o_IsBranch   <= v_IsBranch;
         o_Break      <= v_Break;
-        o_nZero_Sign <= v_nZeroSign;
+        o_SignExtend <= v_nZeroSign;
         o_MemWrite   <= v_MemWrite; 
         o_RegWrite   <= v_RegWrite; 
         o_RFSrc      <= v_RFSrc;    

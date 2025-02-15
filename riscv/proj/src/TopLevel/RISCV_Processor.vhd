@@ -197,8 +197,8 @@ begin
             o_BranchMode => s_BranchMode,
             o_Break      => s_Halt, --open,
             o_IsBranch   => open,
-            o_nInc2_Inc4 => s_IPStride,
-            o_nZero_Sign => s_SignExtend,
+            o_IPStride   => s_IPStride,
+            o_SignExtend => s_SignExtend,
             o_IPToALU    => s_IPToALU
         );
 

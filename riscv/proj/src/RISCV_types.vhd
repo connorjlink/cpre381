@@ -83,7 +83,8 @@ type driver_record_t is record
     DS2        : std_logic_vector(31 downto 0);
     Imm        : std_logic_vector(31 downto 0);
     BranchMode : natural;
-    nInc2_Inc4 : std_logic;
+    IPStride   : std_logic;
+    SignExtend : std_logic;
     IPToALU    : std_logic;
 end record driver_record_t;
 

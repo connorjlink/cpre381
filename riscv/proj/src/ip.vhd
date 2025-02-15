@@ -83,7 +83,7 @@ begin
         )
         port MAP(
             i_CLK => i_CLK,
-            i_RST => '0',
+            i_RST => i_RST, -- FIXME: '0',
             i_WE  => s_IPWrite,
             i_D   => s_IPData,
             o_Q   => s_IPAddr
