@@ -19,7 +19,6 @@ entity driver is
         i_CLK        : in  std_logic;
         i_RST        : in  std_logic;
         i_Insn       : in  std_logic_vector(31 downto 0);
-        i_MaskStall  : in  std_logic;
         o_MemWrite   : out std_logic;
         o_RegWrite   : out std_logic;
         o_RFSrc      : out natural; -- 0 = memory, 1 = ALU, 2 = IP+4
@@ -171,7 +170,7 @@ begin
             o_hImm   => s_dechImm
         );
 
-    process(i_RST, i_MaskStall, i_Insn, s_decOpcode, s_decFunc3, s_decFunc7, 
+    process(i_RST, i_Insn, s_decOpcode, s_decFunc3, s_decFunc7, 
             s_extiImm, s_extsImm, s_extbImm, s_extuImm, s_extjImm)
         variable v_IsBranch   : std_logic;
         variable v_Break      : std_logic;
@@ -182,7 +181,7 @@ begin
         variable v_RFSrc      : natural; -- 0 = memory, 1 = ALU, 2 = next IP
         variable v_ALUOp      : natural;
         variable v_BGUOp      : natural;
-        variable v_LSWidth    : natural;
+        variable v_LSWidth    : natural := 0;
         variable v_Imm        : std_logic_vector(31 downto 0);
         variable v_BranchMode : natural;
         variable v_ipToALU    : std_logic;
@@ -537,17 +536,10 @@ begin
             v_ALUSrc     := '0';
             v_ALUOp      := 0;
             v_BGUOp      := 0;
+            v_LSWidth    := 0;
             v_Imm        := 32x"0";
             v_BranchMode := 0;
             v_ipToALU    := '0';
-        end if;
-
-    
-        -- reset the stall signal once we have branched to start fetching new instructions
-        -- NOTE: this is taking place after setting the control signals to override anything else
-        if i_MaskStall = '1' then
-            v_IsBranch := '0';
-            report "PIPELINE STALL RESCINDED" severity note;
         end if;
 
         o_IsBranch   <= v_IsBranch;

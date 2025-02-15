@@ -182,7 +182,6 @@ begin
             i_CLK        => iCLK, --s_gCLK,
             i_RST        => iRST,
             i_Insn       => s_Inst,
-            i_MaskStall  => '0', -- TODO: this should not affect this single cycle model
             o_MemWrite   => s_DMemWr,
             o_RegWrite   => s_RegWr,
             o_RFSrc      => s_RFSrc,

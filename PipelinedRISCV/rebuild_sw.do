@@ -5,6 +5,7 @@ vcom -2008 -work work ../riscv/proj/src/RISCV_types.vhd
 vcom -2008 -work work ../riscv/proj/src/*.vhd
 vcom -2008 -work work ../riscv/proj/src/TopLevel/*.vhd
 
+vcom -2008 -work work Scheduler/*.vhd
 vcom -2008 -work work Registers/*.vhd
 vcom -2008 -work work SW/*vhd
 

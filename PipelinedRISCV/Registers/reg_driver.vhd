@@ -47,6 +47,7 @@ begin
             o_Signals.DS2        <= (others => '0');
             o_Signals.Imm        <= (others => '0');
             o_Signals.BranchMode <= 0;
+            o_Signals.IsBranch   <= '0';
             o_Signals.IPStride   <= '0';
             o_Signals.SignExtend <= '0';
             o_Signals.IPToALU    <= '0';
@@ -68,6 +69,7 @@ begin
                 o_Signals.DS2        <= i_Signals.DS2;       
                 o_Signals.Imm        <= i_Signals.Imm;       
                 o_Signals.BranchMode <= i_Signals.BranchMode;
+                o_Signals.IsBranch   <= i_Signals.IsBranch;
                 o_Signals.IPStride   <= i_Signals.IPStride;
                 o_Signals.SignExtend <= i_Signals.SignExtend;
                 o_Signals.IPToALU    <= i_Signals.IPToALU;   

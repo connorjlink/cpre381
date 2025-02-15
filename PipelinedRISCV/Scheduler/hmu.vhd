@@ -16,6 +16,8 @@ use work.RISCV_types.all;
 
 entity hmu is
     port(
+        i_MaskStall    : in  std_logic;
+
         i_InsnRS1      : in  std_logic_vector(4 downto 0);
         i_InsnRS2      : in  std_logic_vector(4 downto 0);
 
@@ -37,7 +39,7 @@ entity hmu is
         o_InsnStall    : out std_logic;
 
         o_DriverFlush  : out std_logic;
-        o_DriverStall  : out std_logic;
+        o_DriverStall  : out std_logic
     );
 end hmu;
 
@@ -92,12 +94,25 @@ begin
         end if;
 
         -- Detect load-use hazard, which will require a NOP bubble to resolve
-        if i_DriverIsLoad and (i_DriverRS1 = i_ALURD or i_DriverRS2 = i_ALURD) then 
+        if i_DriverIsLoad = '1' and (i_DriverRS1 = i_ALURD or i_DriverRS2 = i_ALURD) then 
             v_Break := '1';
             -- FIXME: also insn flush?
             v_InsnStall := '1';
             v_DriverFlush := '1';
         end if;
+
+        -- reset the stall signal once we have branched to start fetching new instructions
+        -- NOTE: this is taking place after setting the control signals to override anything else
+        if i_MaskStall = '1' then
+            v_Break := '0';
+            report "PIPELINE STALL RESCINDED" severity note;
+        end if;
+
+        o_Break <= v_Break;
+        o_InsnFlush <= v_InsnFlush;
+        o_InsnStall <= v_InsnStall;
+        o_DriverFlush <= v_DriverFlush;
+        o_DriverStall <= v_DriverStall;
     end process;
 
 end mixed;

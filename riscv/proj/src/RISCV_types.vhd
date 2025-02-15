@@ -31,10 +31,10 @@ constant BGEU : natural := 6;
 constant J    : natural := 7; -- force jump for `jal` and `jalr`
 
 -- Corresponding to each load/store data width
-constant BYTE   : natural := 0;
-constant HALF   : natural := 1;
-constant WORD   : natural := 2;
-constant DOUBLE : natural := 3;
+constant BYTE   : natural := 1;
+constant HALF   : natural := 2;
+constant WORD   : natural := 3;
+constant DOUBLE : natural := 4;
 
 -- Corresponding to each ALU operation code input signal
 constant ADD  : natural := 0;
@@ -83,8 +83,9 @@ type driver_record_t is record
     DS2        : std_logic_vector(31 downto 0);
     Imm        : std_logic_vector(31 downto 0);
     BranchMode : natural;
-    IPStride   : std_logic;
-    SignExtend : std_logic;
+    IsBranch   : std_logic;
+    IPStride   : std_logic; -- 0 = 2bytes, 1 = 4bytes
+    SignExtend : std_logic; -- 0 = zero-extend, 1 = sign-extend
     IPToALU    : std_logic;
 end record driver_record_t;
 

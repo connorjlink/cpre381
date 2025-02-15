@@ -30,6 +30,7 @@ constant cCLK_PER : time := gCLK_HPER * 2;
 signal CLK, reset : std_logic := '0';
 
 -- Create input and output signals for the module under test
+signal i_MaskStall    : std_logic;
 signal i_InsnRS1      : std_logic_vector(4 downto 0);
 signal i_InsnRS2      : std_logic_vector(4 downto 0);
 signal i_DriverRS1    : std_logic_vector(4 downto 0);
@@ -49,23 +50,24 @@ signal o_DriverStall  : std_logic;
 begin
 
 -- Instantiate the module under test
-DUT0: entity.work.hmu
+DUT0: entity work.hmu
 	port MAP(
-        i_InsnRS1     => i_InsnRS1, 
-        i_InsnRS2     => i_InsnRS2, 
-        i_DriverRS1   => i_DriverRS1, 
-        i_DriverRS2   => i_DriverRS2, 
-        i_DriverRD    => i_DriverRD, 
-        i_DriverIsLoa => i_DriverIsLoad,
-        i_ALURD       => i_ALURD, 
-        i_BranchMode  => i_BranchMode, 
-        i_Branch      => i_Branch, 
-        i_IsBranch    => i_IsBranch, 
-        o_Break       => o_Break, 
-        o_InsnFlush   => o_InsnFlush, 
-        o_InsnStall   => o_InsnStall, 
-        o_DriverFlush => o_DriverFlush, 
-        o_DriverStall => o_DriverStall
+        i_MaskStall    => i_MaskStall,
+        i_InsnRS1      => i_InsnRS1, 
+        i_InsnRS2      => i_InsnRS2, 
+        i_DriverRS1    => i_DriverRS1, 
+        i_DriverRS2    => i_DriverRS2, 
+        i_DriverRD     => i_DriverRD, 
+        i_DriverIsLoad => i_DriverIsLoad,
+        i_ALURD        => i_ALURD, 
+        i_BranchMode   => i_BranchMode, 
+        i_Branch       => i_Branch, 
+        i_IsBranch     => i_IsBranch, 
+        o_Break        => o_Break, 
+        o_InsnFlush    => o_InsnFlush, 
+        o_InsnStall    => o_InsnStall, 
+        o_DriverFlush  => o_DriverFlush, 
+        o_DriverStall  => o_DriverStall
     );
 
 --This first process is to setup the clock for the test bench

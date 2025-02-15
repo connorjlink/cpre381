@@ -92,7 +92,9 @@ signal s_RS2Data : std_logic_vector(31 downto 0);
 
 -- Signal to hold the ALU inputs and outputs
 signal s_ALUOperand1 : std_logic_vector(31 downto 0);
+signal s_RealALUOperand1 : std_logic_vector(31 downto 0);
 signal s_ALUOperand2 : std_logic_vector(31 downto 0);
+signal s_RealALUOperand2 : std_logic_vector(31 downto 0);
 
 -- Signals to handle the output of the BGU
 signal s_Branch : std_logic;
@@ -106,7 +108,8 @@ signal s_BranchAddr : std_logic_vector(31 downto 0);
 
 -- Signal to output the contents of the instruction pointer
 signal s_IPAddr : std_logic_vector(31 downto 0);
-
+signal s_IPBreak : std_logic;
+signal s_IsLoad : std_logic;
 
 ----------------------------------------------------------------------------------
 ---- Pipeline Data Signals
@@ -136,6 +139,13 @@ signal insn_Stall,   insn_Flush   : std_logic := '0';
 signal driver_Stall, driver_Flush : std_logic := '0';
 signal alu_Stall,    alu_Flush    : std_logic := '0';
 signal mem_Stall,    mem_Flush    : std_logic := '0';
+----------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+---- Pipeline Data Signals
+----------------------------------------------------------------------------------
+signal s_ForwardALUToALUOperand1, s_ForwardALUToALUOperand2, s_ForwardMemToALUOperand1, s_ForwardMemToALUOperand2 : std_logic := '0';
+signal s_ForwardMemToDriverRS1,   s_ForwardMemToDriverRS2,   s_ForwardALUToDriverRS1,   s_ForwardALUToDriverRS2   : std_logic := '0';
 ----------------------------------------------------------------------------------
 
 
@@ -188,7 +198,7 @@ begin
     ---- Instruction -> Driver stage register(s)
     -----------------------------------------------------
 
-    SoftwareCPU_Insn_IR: entity work.reg_insn
+    SWCPU_Insn_IR: entity work.reg_insn
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -208,7 +218,7 @@ begin
     ---- Driver -> ALU stage register(s)
     -----------------------------------------------------
 
-    SoftwareCPU_Driver_IR: entity work.reg_insn
+    SWCPU_Driver_IR: entity work.reg_insn
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -219,7 +229,7 @@ begin
             o_Signals => driver_insn_buf
         );
 
-    SoftwareCPU_Driver_DR: entity work.reg_driver
+    SWCPU_Driver_DR: entity work.reg_driver
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -240,7 +250,7 @@ begin
     ---- ALU -> Memory stage register(s)
     -----------------------------------------------------
 
-    SoftwareCPU_ALU_IR: entity work.reg_insn
+    SWCPU_ALU_IR: entity work.reg_insn
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -251,7 +261,7 @@ begin
             o_Signals => alu_insn_buf
         );
 
-    SoftwareCPU_ALU_DR: entity work.reg_driver
+    SWCPU_ALU_DR: entity work.reg_driver
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -262,7 +272,7 @@ begin
             o_Signals => alu_driver_buf
         );
 
-    SoftwareCPU_ALU_AR: entity work.reg_alu
+    SWCPU_ALU_AR: entity work.reg_alu
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -285,7 +295,7 @@ begin
     ---- Memory -> Register File stage register(s)
     -----------------------------------------------------
 
-    SoftwareCPU_Mem_IR: entity work.reg_insn
+    SWCPU_Mem_IR: entity work.reg_insn
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -296,7 +306,7 @@ begin
             o_Signals => mem_insn_buf
         );
 
-    SoftwareCPU_Mem_DR: entity work.reg_driver
+    SWCPU_Mem_DR: entity work.reg_driver
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -307,7 +317,7 @@ begin
             o_Signals => mem_driver_buf
         );
 
-    SoftwareCPU_Mem_AR: entity work.reg_alu
+    SWCPU_Mem_AR: entity work.reg_alu
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -319,7 +329,7 @@ begin
         ); 
     
 
-    SoftwareCPU_Mem_MR: entity work.reg_mem
+    SWCPU_Mem_MR: entity work.reg_mem
         port MAP(
             i_CLK => iCLK,
             i_RST => iRST,
@@ -337,12 +347,12 @@ begin
                     std_logic_vector(signed(mem_driver_buf.DS1)  + signed(mem_driver_buf.Imm)) when (mem_driver_buf.BranchMode = work.RISCV_types.JALR)       else 
                     (others => '0');
 
-    SoftwareCPU_IP: entity work.ip
+    SWCPU_IP: entity work.ip
         generic MAP(
             ResetAddress => 32x"0"
         )
         port MAP(
-            i_CLK        => iCLK, -- TODO: i_CLK or s_gCLK
+            i_CLK        => (iCLK and not s_IPBreak), -- TODO: i_CLK or s_gCLK
             i_RST        => iRST,
             i_Stall      => insn_Stall, -- FIXME:
             i_Load       => s_Branch,
@@ -357,7 +367,7 @@ begin
     insn_insn_raw.Insn     <= s_Inst;
 
 
-    SoftwareCPU_BGU: entity work.bgu
+    SWCPU_BGU: entity work.bgu
         port MAP(
             i_CLK    => s_gCLK,
             -- these signals might need to be hooked up to earlier in the pipeline
@@ -369,12 +379,11 @@ begin
         );
 
 
-    SoftwareCPU_Driver: entity work.driver
+    SWCPU_Driver: entity work.driver
         port MAP(
             i_CLK        => s_gCLK,
             i_RST        => iRST,
-            i_Insn       => s_Inst,
-            i_MaskStall  => '0', -- TODO: this should not affect this single cycle model
+            i_Insn       => driver_insn_raw.Insn, -- s_Inst,
             o_MemWrite   => driver_driver_raw.MemWrite, -- s_DMemWr
             o_RegWrite   => driver_driver_raw.RegWrite, -- s_RegWr,
             o_RFSrc      => driver_driver_raw.RFSrc,
@@ -388,7 +397,7 @@ begin
             o_Imm        => driver_driver_raw.Imm,
             o_BranchMode => driver_driver_raw.BranchMode,
             o_Break      => s_Halt,
-            o_IsBranch   => open,
+            o_IsBranch   => driver_driver_raw.IsBranch,
             o_IPStride   => driver_driver_raw.IPStride,
             o_SignExtend => driver_driver_raw.SignExtend,
             o_IPToALU    => driver_driver_raw.IPToALU
@@ -407,7 +416,7 @@ begin
     s_RegWr <= mem_driver_buf.RegWrite;
     s_RegWrAddr <= mem_driver_buf.RD;
 
-    SoftwareCPU_RegisterFile: entity work.regfile
+    SWCPU_RegisterFile: entity work.regfile
         port MAP(
             i_CLK => s_ngCLK,
             --i_CLK => s_gCLK, -- needs to be written on the negedge
@@ -432,10 +441,10 @@ begin
                      driver_driver_buf.DS2  when (driver_driver_buf.ALUSrc = '0')  else
                      (others => '0');
 
-    SoftwareCPU_ALU: entity work.alu
+    SWCPU_ALU: entity work.alu
         port MAP(
-            i_A     => s_ALUOperand1,
-            i_B     => s_ALUOperand2,
+            i_A     => s_RealALUOperand1,
+            i_B     => s_RealALUOperand2,
             i_ALUOp => alu_driver_raw.ALUOp,
             o_F     => alu_alu_raw.F,
             o_Co    => alu_alu_raw.Co
@@ -460,9 +469,83 @@ begin
                          (others => '0');
 
 
-    
+    -----------------------------------------------------
+    ---- Hardware Pipeline Scheduling
+    -----------------------------------------------------
 
+    -- FIXME: should it be alu_alu_raw or buf?
+    -- FIXME: what width to use for DMemData/extended to ensure that the correct value is read?
+    s_RealALUOperand1 <= alu_alu_buf.F when (s_ForwardALUToALUOperand1 = '1' and s_ForwardMemToALUOperand1 = '0') else
+                         s_DMemData    when (s_ForwardALUToALUOperand1 = '0' and s_ForwardMemToALUOperand1 = '1') else
+                         s_ALUOperand1;
 
+    -- FIXME: should it be alu_alu_raw or buf?
+    -- FIXME: what width to use for DMemData/extended to ensure that the correct value is read?
+    s_RealALUOperand2 <= alu_alu_buf.F when (s_ForwardALUToALUOperand2 = '1' and s_ForwardMemToALUOperand2 = '0') else
+                         s_DMemData    when (s_ForwardALUToALUOperand2 = '0' and s_ForwardMemToALUOperand2 = '1') else
+                         s_ALUOperand2;
+        
+
+    s_IsLoad <= '1' when (driver_driver_buf.LSWidth /= 0) else
+                '0';
+
+    HWCPU_HMU: entity work.hmu
+        port MAP(
+            i_MaskStall    => s_Branch,
+
+            i_InsnRS1      => driver_driver_raw.RS1,
+            i_InsnRS2      => driver_driver_raw.RS2,
+
+            i_DriverRS1    => driver_driver_buf.RS1,
+            i_DriverRS2    => driver_driver_buf.RS2,
+            i_DriverRD     => driver_driver_buf.RD,
+            i_DriverIsLoad => s_IsLoad,
+
+            i_ALURD        => alu_driver_raw.RD,
+
+            i_BranchMode   => mem_driver_buf.BGUOp,
+            i_Branch       => s_Branch,
+            i_IsBranch     => mem_driver_buf.Isbranch,
+
+            o_Break        => s_IPBreak,
+            o_InsnFlush    => insn_Flush,
+            o_InsnStall    => insn_Stall,
+            o_DriverFlush  => driver_Flush,
+            o_DriverStall  => driver_Stall
+        );
+
+    HWCPU_DFU: entity work.dfu
+        port MAP(
+            i_InsnRS1     => driver_driver_raw.RS1, -- FIXME:
+            i_InsnRS2     => driver_driver_raw.RS2, -- FIXME: how to connect this to insn
+
+            i_DriverRS1   => driver_driver_buf.RS1,
+            i_DriverRS2   => driver_driver_buf.RS2,
+
+            i_ALURS1      => alu_driver_buf.RS1,
+            i_ALURS2      => alu_driver_buf.RS2,
+            i_ALURegWrite => alu_driver_buf.RegWrite,
+
+            i_MemRD       => mem_driver_buf.RD,
+            i_MemRS1      => mem_driver_buf.RS1,
+            i_MemRS2      => mem_driver_buf.RS2,
+            i_MemRegWrite => mem_driver_buf.RegWrite,
+
+            i_BranchMode   => mem_driver_buf.BGUOp,
+            i_Branch       => s_Branch,
+            i_IsBranch     => mem_driver_buf.Isbranch,
+
+            o_ForwardALUToALUOperand1 => s_ForwardALUToALUOperand1,
+            o_ForwardALUToALUOperand2 => s_ForwardALUToALUOperand2,
+            o_ForwardMemToALUOperand1 => s_ForwardMemToALUOperand1,
+            o_ForwardMemToALUOperand2 => s_ForwardMemToALUOperand2,
+            o_ForwardMemToDriverRS1   => s_ForwardMemToDriverRS1,
+            o_ForwardMemToDriverRS2   => s_ForwardMemToDriverRS2,
+            o_ForwardALUToDriverRS1   => s_ForwardALUToDriverRS1,
+            o_ForwardALUToDriverRS2   => s_ForwardALUToDriverRS2
+        );
+
+    -----------------------------------------------------
 
 end structure;
 

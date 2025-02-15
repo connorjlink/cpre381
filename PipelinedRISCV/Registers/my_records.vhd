@@ -34,6 +34,7 @@ type controls_t is record
     DS2        : std_logic_vector(31 downto 0);
     Imm        : std_logic_vector(31 downto 0);
     BranchMode : natural;
+    IsBranch   : std_logic;
     IPStride   : std_logic; -- 0 = 2bytes, 1 = 4bytes
     SignExtend : std_logic; -- 0 = zero-extend, 1 = sign-extend
     IPToALU    : std_logic;
