@@ -13,4 +13,4 @@
 # // and may not be used in any way not expressly authorized by SISW.
 # //
 add wave -position insertpoint vsim:/tb/MyRiscv/*
-add wave -position insertpoint vsim:/tb/MyRiscv/g_InstructionPointerUnit/*
+add wave -position insertpoint vsim:/tb/MyRiscv/SWCPU_RegisterFile/*

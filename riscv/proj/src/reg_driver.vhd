@@ -31,7 +31,7 @@ begin
 
     process(i_CLK, i_RST)
     begin
-        if i_RST = '1' or i_Flush = '1' then
+        if i_RST = '1' or (i_Flush = '1'  and rising_edge(i_CLK)) then
             -- insert a NOP
             o_Signals.MemWrite   <= '0';
             o_Signals.RegWrite   <= '0';
@@ -46,6 +46,7 @@ begin
             o_Signals.DS1        <= (others => '0');
             o_Signals.DS2        <= (others => '0');
             o_Signals.Imm        <= (others => '0');
+            o_Signals.Break      <= '0';
             o_Signals.BranchMode <= 0;
             o_Signals.IsBranch   <= '0';
             o_Signals.IPStride   <= '0';
@@ -68,6 +69,7 @@ begin
                 o_Signals.DS1        <= i_Signals.DS1;       
                 o_Signals.DS2        <= i_Signals.DS2;       
                 o_Signals.Imm        <= i_Signals.Imm;       
+                o_Signals.Break      <= i_Signals.Break;
                 o_Signals.BranchMode <= i_Signals.BranchMode;
                 o_Signals.IsBranch   <= i_Signals.IsBranch;
                 o_Signals.IPStride   <= i_Signals.IPStride;

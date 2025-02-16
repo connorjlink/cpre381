@@ -82,6 +82,7 @@ type driver_record_t is record
     DS1        : std_logic_vector(31 downto 0);
     DS2        : std_logic_vector(31 downto 0);
     Imm        : std_logic_vector(31 downto 0);
+    Break      : std_logic;
     BranchMode : natural;
     IsBranch   : std_logic;
     IPStride   : std_logic; -- 0 = 2bytes, 1 = 4bytes

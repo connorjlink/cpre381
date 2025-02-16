@@ -6,11 +6,12 @@
 
 -------------------------------------------------------------------------
 -- RISCV_Processor.vhd
--- DESCRIPTION: This file contains a skeleton of a RISCV_Processor  
--- implementation.
+-- DESCRIPTION: This file contains a skeleton of a software-scheduled 
+-- pipelined RISCV_Processor implementation.
 
 -- 01.29.2019 by H3::Design created.
 -- 02.11.2025 by Connor J. Link authored RISC-V implementation.
+-- 02.16.2025 by Connor J. Link authored 5-stage pipeline upgrade.
 -------------------------------------------------------------------------
 
 library IEEE;
@@ -55,7 +56,7 @@ signal s_Inst         : std_logic_vector(N-1 downto 0); -- TODO: use this signal
 -- Required halt signal -- for simulation
 signal s_Halt         : std_logic;  -- TODO: this signal indicates to the simulation that intended program execution has completed. (Opcode: 01 0100)
 
--- Required overflow signal -- for overflow exception detection
+-- FIXME: Required overflow signal -- for overflow exception detection
 signal s_Ovfl         : std_logic;
 
 component mem is
@@ -74,139 +75,364 @@ end component;
 
 
 -- Signals to hold memory inputs and outputs
-signal s_DMemDataExtended : std_logic_vector(31 downto 0);
+signal s_DMemOutExtended : std_logic_vector(31 downto 0);
 
 -- Signals to hold the intermediate outputs from the register file
 signal s_RS1Data : std_logic_vector(31 downto 0);
+signal s_DriverRS1Data : std_logic_vector(31 downto 0);
 signal s_RS2Data : std_logic_vector(31 downto 0);
+signal s_DriverRS2Data : std_logic_vector(31 downto 0);
 
 -- Signal to hold the ALU inputs and outputs
 signal s_ALUOperand1 : std_logic_vector(31 downto 0);
+signal s_RealALUOperand1 : std_logic_vector(31 downto 0);
 signal s_ALUOperand2 : std_logic_vector(31 downto 0);
-signal s_ALUResult   : std_logic_vector(31 downto 0);
-signal s_ALUCarry    : std_logic;
-
--- Signals to hold the control lines from the driver
-signal s_RFSrc      : natural; -- 0 = ALU, 1 = memory, 2 = IP+4
-signal s_ALUSrc     : std_logic;
-signal s_ALUOp      : natural;
-signal s_BGUOp      : natural;
-signal s_LSWidth    : natural;
-signal s_RS1        : std_logic_vector(4 downto 0);
-signal s_RS2        : std_logic_vector(4 downto 0);
-signal s_Imm        : std_logic_vector(31 downto 0);
-signal s_BranchMode : natural;
-signal s_IPStride   : std_logic; -- 0 = inc2, 1 = inc4
-signal s_SignExtend : std_logic; -- 0 = zero extend, 1 = sign extend
-signal s_IPToALU    : std_logic;
+signal s_RealALUOperand2 : std_logic_vector(31 downto 0);
 
 -- Signals to handle the output of the BGU
 signal s_Branch : std_logic;
--- Signals to hold the computed memory instruction address input to the IP
-signal s_BranchAddr : std_logic_vector(31 downto 0);
--- Signal to output the contents of the instruction pointer
-signal s_IPAddr : std_logic_vector(31 downto 0);
+signal s_BranchDelayed : std_logic;
 
 -- Signal to hold the modified clock
-signal s_gCLK  : std_logic;
-signal s_ngCLK : std_logic;
+signal nCLK  : std_logic;
+
+-- Signals to hold the computed memory instruction address input to the IP
+signal s_BranchAddr : std_logic_vector(31 downto 0);
+
+-- Signal to output the contents of the instruction pointer
+signal s_IPAddr : std_logic_vector(31 downto 0);
+signal s_IPBreak : std_logic;
+signal s_DriverIsLoad : std_logic;
+signal s_ALUIsLoad : std_logic;
+
+----------------------------------------------------------------------------------
+---- Pipeline Data Signals
+---- NOTE: the two identifiers are not the source and destination connections
+---- The first is the source of the pipeline register, and the second is the stage
+---- operating the pool of signals at hand.
+----
+---- Thus, alu_insn_raw are the `input` signals to the pipeline register after the ALU
+---- stage driven by the instruction register (so IPAddr, Insn, etc.)
+----------------------------------------------------------------------------------
+signal insn_insn_raw,     insn_insn_buf     : work.RISCV_types.insn_record_t;
+
+signal driver_insn_raw,   driver_insn_buf   : work.RISCV_types.insn_record_t;
+signal driver_driver_raw, driver_driver_buf : work.RISCV_types.driver_record_t;
+
+signal alu_insn_raw,      alu_insn_buf      : work.RISCV_types.insn_record_t;
+signal alu_driver_raw,    alu_driver_buf    : work.RISCV_types.driver_record_t;
+signal alu_alu_raw,       alu_alu_buf       : work.RISCV_types.alu_record_t;
+
+signal mem_insn_raw,      mem_insn_buf      : work.RISCV_types.insn_record_t;
+signal mem_driver_raw,    mem_driver_buf    : work.RISCV_types.driver_record_t;
+signal mem_alu_raw,       mem_alu_buf       : work.RISCV_types.alu_record_t;
+signal mem_mem_raw,       mem_mem_buf       : work.RISCV_types.mem_record_t;
+
+
+signal insn_Stall,   insn_Flush   : std_logic := '0';
+signal driver_Stall, driver_Flush : std_logic := '0';
+signal alu_Stall,    alu_Flush    : std_logic := '0';
+signal mem_Stall,    mem_Flush    : std_logic := '0';
+----------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+---- Pipeline Data Signals
+----------------------------------------------------------------------------------
+signal s_ForwardALUToALUOperand1, s_ForwardALUToALUOperand2, s_ForwardMemToALUOperand1, s_ForwardMemToALUOperand2 : std_logic := '0';
+signal s_ForwardMemToDriverRS1,   s_ForwardMemToDriverRS2,   s_ForwardALUToDriverRS1,   s_ForwardALUToDriverRS2   : std_logic := '0';
+----------------------------------------------------------------------------------
+
 
 begin
+
+    s_Ovfl <= '0'; -- RISC-V does not support overflow-checked arithmetic.
+    
+    nCLK <= not iCLK;
 
     -- TODO: This is required to be your final input to your instruction memory. This provides a feasible method to externally load the memory module which means that the synthesis tool must assume it knows nothing about the values stored in the instruction memory. If this is not included, much, if not all of the design is optimized out because the synthesis tool will believe the memory to be all zeros.
     with iInstLd select
         s_IMemAddr <= s_NextInstAddr when '0',
                       iInstAddr      when others;
 
+    -- FIXME: connect to new control signals
     IMem: mem
         generic map(
             ADDR_WIDTH => work.RISCV_types.ADDR_WIDTH,
             DATA_WIDTH => N
         )
         port map(
-            clk  => iCLK, -- gCLK
+            clk  => iCLK,
             addr => s_IPAddr(11 downto 2),
             data => iInstExt,
             we   => iInstLd,
             q    => s_Inst
         );
   
+    -- FIXME: connect to new control signals
     DMem: mem
         generic map(
             ADDR_WIDTH => work.RISCV_types.ADDR_WIDTH,
             DATA_WIDTH => N
         )
         port map(
-            clk  => iCLK, --ngCLK
+            clk  => nCLK,
             addr => s_DMemAddr(11 downto 2),
-            data => s_DMemData, -- ScaledDS2
+            data => s_DMemData,
             we   => s_DMemWr,
             q    => s_DMemOut
         );
 
-    s_Ovfl <= '0'; -- RISC-V does not support overflow-checked arithmetic.
+    s_DMemWr <= alu_driver_buf.MemWrite;
+    mem_mem_raw.Data <= s_DMemOut;
+
+    -- IMPLEMENTATION STARTS HERE
+
+    -----------------------------------------------------
+    ---- Instruction -> Driver stage register(s)
+    -----------------------------------------------------
+
+    SWCPU_Insn_IR: entity work.reg_insn
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => insn_Stall,
+            i_Flush => insn_Flush,
+        
+            i_Signals => insn_insn_raw,
+            o_Signals => insn_insn_buf
+        );
+
+    driver_insn_raw <= insn_insn_buf;
+        
+    -----------------------------------------------------
+
+
+    -----------------------------------------------------
+    ---- Driver -> ALU stage register(s)
+    -----------------------------------------------------
+
+    SWCPU_Driver_IR: entity work.reg_insn
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => driver_Stall,
+            i_Flush => driver_Flush,
+        
+            i_Signals => driver_insn_raw,
+            o_Signals => driver_insn_buf
+        );
+
+    SWCPU_Driver_DR: entity work.reg_driver
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => driver_Stall,
+            i_Flush => driver_Flush,
+        
+            i_Signals => driver_driver_raw,
+            o_Signals => driver_driver_buf
+        );
+
+    alu_insn_raw   <= driver_insn_buf;
+    alu_driver_raw <= driver_driver_buf;
+
+    -----------------------------------------------------
+
+
+    -----------------------------------------------------
+    ---- ALU -> Memory stage register(s)
+    -----------------------------------------------------
+
+    SWCPU_ALU_IR: entity work.reg_insn
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => alu_Stall,
+            i_Flush => alu_Flush,
+        
+            i_Signals => alu_insn_raw,
+            o_Signals => alu_insn_buf
+        );
+
+    SWCPU_ALU_DR: entity work.reg_driver
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => alu_Stall,
+            i_Flush => alu_Flush,
+        
+            i_Signals => alu_driver_raw,
+            o_Signals => alu_driver_buf
+        );
+
+    SWCPU_ALU_AR: entity work.reg_alu
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => alu_Stall,
+            i_Flush => alu_Flush,
+        
+            i_Signals => alu_alu_raw,
+            o_Signals => alu_alu_buf
+        );
+
+
+    mem_insn_raw   <= alu_insn_buf;
+    mem_driver_raw <= alu_driver_buf;
+    mem_alu_raw    <= alu_alu_buf;
+
+    -----------------------------------------------------
+
+
+    -----------------------------------------------------
+    ---- Memory -> Register File stage register(s)
+    -----------------------------------------------------
+
+    SWCPU_Mem_IR: entity work.reg_insn
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => mem_Stall,
+            i_Flush => mem_Flush,
+        
+            i_Signals => mem_insn_raw,
+            o_Signals => mem_insn_buf
+        );
+
+    SWCPU_Mem_DR: entity work.reg_driver
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => mem_Stall,
+            i_Flush => mem_Flush,
+        
+            i_Signals => mem_driver_raw,
+            o_Signals => mem_driver_buf
+        );
+
+    SWCPU_Mem_AR: entity work.reg_alu
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => mem_Stall,
+            i_Flush => mem_Flush,
+        
+            i_Signals => mem_alu_raw,
+            o_Signals => mem_alu_buf
+        ); 
     
-    s_BranchAddr <= std_logic_vector(signed(s_IPAddr)  + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JAL_OR_BCC) else
-                    std_logic_vector(signed(s_RS1Data) + signed(s_Imm)) when (s_BranchMode = work.RISCV_types.JALR)       else 
+
+    SWCPU_Mem_MR: entity work.reg_mem
+        port MAP(
+            i_CLK => iCLK,
+            i_RST => iRST,
+            i_Stall => mem_Stall,
+            i_Flush => mem_Flush,
+        
+            i_Signals => mem_mem_raw,
+            o_Signals => mem_mem_buf
+        );
+
+    -----------------------------------------------------
+
+
+    -- ALU or MEM stage here for inputs?
+    -- buf or raw?
+    s_BranchAddr <= std_logic_vector(signed(driver_insn_buf.IPAddr) + signed(driver_driver_buf.Imm)) when (driver_driver_buf.BranchMode = work.RISCV_types.JAL_OR_BCC) else
+                    std_logic_vector(signed(driver_driver_buf.DS1)  + signed(driver_driver_buf.Imm)) when (driver_driver_buf.BranchMode = work.RISCV_types.JALR)       else 
                     (others => '0');
 
-    g_InstructionPointerUnit: entity work.ip
+    SWCPU_IP: entity work.ip
         generic MAP(
             ResetAddress => 32x"00400000"
         )
         port MAP(
-            i_CLK        => iCLK, -- FIXME: s_gCLK or iCLK?
+            i_CLK        => iCLK, -- TODO: i_CLK or nCLK
             i_RST        => iRST,
+            i_Stall      => s_IPBreak, -- FIXME:
             i_Load       => s_Branch,
-            i_Addr       => s_BranchAddr,
-            i_nInc2_Inc4 => s_IPStride,
-            i_Stall      => '0',
+            i_Addr       => s_BranchAddr, -- FIXME:
+            -- BELOW: might be 1 pipeline stage ahead (one cycle off)
+            i_nInc2_Inc4 => driver_driver_raw.IPStride, -- FIXME: is this too late in the pipeline to decide how far to stride each instruction?
             o_Addr       => s_IPAddr,
-            o_LinkAddr   => s_NextInstAddr -- replaced from s_LinkAddr, for it represents the address to which to link should a jal/jalr take place
+            o_LinkAddr   => s_NextInstAddr 
         );
+    insn_insn_raw.IPAddr   <= s_IPAddr;
+    insn_insn_raw.LinkAddr <= s_NextInstAddr;
+    insn_insn_raw.Insn     <= s_Inst;
 
-    s_gCLK <= (not s_Halt) and iCLK;
-    s_ngCLK <= not s_gCLK;
 
-    g_CPUBranchUnit: entity work.bgu
+    SWCPU_BGU: entity work.bgu
         port MAP(
-            i_CLK    => iCLK, --s_gCLK,
-            i_DS1    => s_RS1Data,
-            i_DS2    => s_RS2Data,
-            i_BGUOp  => s_BGUOp,
+            i_CLK    => iCLK,
+            -- these signals might need to be hooked up to earlier in the pipeline
+            -- the like the raw output from the driver or something in order to later forward ht evlaue that we n eed
+            i_DS1    => driver_driver_buf.DS1, --mem_driver_buf.DS1, --s_RS1Data,
+            i_DS2    => driver_driver_buf.DS2, --mem_driver_buf.DS2, --s_RS2Data,
+            i_BGUOp  => driver_driver_buf.BGUOp, --mem_driver_buf.BGUOp, --s_dBGUOp,
             o_Branch => s_Branch
         );
 
-    g_CPUDriver: entity work.driver
+
+    SWCPU_Driver: entity work.driver
         port MAP(
-            i_CLK        => iCLK, --s_gCLK,
+            i_CLK        => iCLK,
             i_RST        => iRST,
-            i_Insn       => s_Inst,
-            o_MemWrite   => s_DMemWr,
-            o_RegWrite   => s_RegWr,
-            o_RFSrc      => s_RFSrc,
-            o_ALUSrc     => s_ALUSrc,
-            o_ALUOp      => s_ALUOp,
-            o_BGUOp      => s_BGUOp,
-            o_LSWidth    => s_LSWidth,
-            o_RD         => s_RegWrAddr,
-            o_RS1        => s_RS1,
-            o_RS2        => s_RS2, 
-            o_Imm        => s_Imm,
-            o_BranchMode => s_BranchMode,
-            o_Break      => s_Halt, --open,
-            o_IsBranch   => open,
-            o_IPStride   => s_IPStride,
-            o_SignExtend => s_SignExtend,
-            o_IPToALU    => s_IPToALU
+            i_Insn       => driver_insn_raw.Insn, -- s_Inst,
+            o_MemWrite   => driver_driver_raw.MemWrite, -- s_DMemWr
+            o_RegWrite   => driver_driver_raw.RegWrite, -- s_RegWr,
+            o_RFSrc      => driver_driver_raw.RFSrc,
+            o_ALUSrc     => driver_driver_raw.ALUSrc,
+            o_ALUOp      => driver_driver_raw.ALUOp,
+            o_BGUOp      => driver_driver_raw.BGUOp,
+            o_LSWidth    => driver_driver_raw.LSWidth,
+            o_RD         => driver_driver_raw.RD, -- s_RegWrAddr,
+            o_RS1        => driver_driver_raw.RS1,
+            o_RS2        => driver_driver_raw.RS2, 
+            o_Imm        => driver_driver_raw.Imm,
+            o_BranchMode => driver_driver_raw.BranchMode,
+            o_Break      => driver_driver_raw.Break,
+            o_IsBranch   => driver_driver_raw.IsBranch,
+            o_IPStride   => driver_driver_raw.IPStride,
+            o_SignExtend => driver_driver_raw.SignExtend,
+            o_IPToALU    => driver_driver_raw.IPToALU
         );
 
-    g_CPURegisterFile: entity work.regfile
+    s_Halt <= mem_driver_buf.Break;
+
+    -- FIXME: should it be alu_alu_raw or buf?
+    -- FIXME: what width to use for DMemData/extended to ensure that the correct value is read? 
+
+    s_DriverRS1Data <= alu_alu_raw.F when (s_ForwardALUToDriverRS1 = '1' and s_ForwardMemToDriverRS1 = '0') else
+                       mem_alu_buf.F when (s_ForwardALUToDriverRS1 = '0' and s_ForwardMemToDriverRS1 = '1') else
+                       s_RS1Data;
+
+    s_DriverRS2Data <= alu_alu_raw.F when (s_ForwardALUToDriverRS2 = '1' and s_ForwardMemToDriverRS2 = '0') else
+                       mem_alu_buf.F when (s_ForwardALUToDriverRS2 = '0' and s_ForwardMemToDriverRS2 = '1') else
+                       s_RS2Data;
+
+    driver_driver_raw.DS1 <= s_DriverRS1Data;
+    driver_driver_raw.DS2 <= s_DriverRS2Data;
+
+
+
+    s_RegWrData <= s_DMemOutExtended     when (mem_driver_buf.RFSrc = work.RISCV_types.FROM_RAM)    else 
+                   mem_alu_buf.F         when (mem_driver_buf.RFSrc = work.RISCV_types.FROM_ALU)    else 
+                   mem_insn_buf.LinkAddr when (mem_driver_buf.RFSrc = work.RISCV_types.FROM_NEXTIP) else
+                   mem_driver_buf.Imm    when (mem_driver_buf.RFSrc = work.RISCV_types.FROM_IMM)    else
+                   (others => '0');
+
+    s_RegWr <= mem_driver_buf.RegWrite;
+    s_RegWrAddr <= mem_driver_buf.RD;
+
+    SWCPU_RegisterFile: entity work.regfile
         port MAP(
-            i_CLK => iCLK, -- FIXME: shouldn't this be written on the negative edge to avoid a data race? (s_ngCLK)
+            i_CLK => nCLK, -- TODO:  nCLK/iCLK
             i_RST => iRST,
-            i_RS1 => s_RS1,
-            i_RS2 => s_RS2,
+            -- following, I guess that register reads HAVE to happen in the Decode stage
+            -- unless forwarding
+            i_RS1 => driver_driver_raw.RS1, -- mem_driver_buf.RS1
+            i_RS2 => driver_driver_raw.RS2, -- mem_driver_buf.RS2
             i_RD  => s_RegWrAddr,
             i_WE  => s_RegWr,
             i_D   => s_RegWrData,
@@ -214,44 +440,135 @@ begin
             o_DS2 => s_RS2Data
         );
 
-    s_ALUOperand1 <= s_IPAddr when (s_IPToALU = '1') else
-                     s_RS1Data;
 
-    s_ALUOperand2 <= s_RS2Data when (s_ALUSrc = '0') else
-                     s_Imm;
+    s_ALUOperand1 <= driver_insn_buf.IPAddr when (driver_driver_buf.IPToALU = '1') else
+                     driver_driver_buf.DS1  when (driver_driver_buf.IPToALU = '0') else
+                     (others => '0');
 
-    g_CPUALU: entity work.alu
+    s_ALUOperand2 <= driver_driver_buf.Imm  when (driver_driver_buf.ALUSrc = '1')  else
+                     driver_driver_buf.DS2  when (driver_driver_buf.ALUSrc = '0')  else
+                     (others => '0');
+
+    SWCPU_ALU: entity work.alu
         port MAP(
-            i_A     => s_ALUOperand1,
-            i_B     => s_ALUOperand2,
-            i_ALUOp => s_ALUOp,
-            o_F     => s_ALUResult,
-            o_Co    => s_ALUCarry
+            i_A     => s_RealALUOperand1,
+            i_B     => s_RealALUOperand2,
+            i_ALUOp => alu_driver_raw.ALUOp,
+            o_F     => alu_alu_raw.F,
+            o_Co    => alu_alu_raw.Co
         );
 
-    oALUOut <= s_ALUResult;
-    s_DMemAddr <= s_ALUResult;
+    oALUOut <= alu_alu_raw.F;
+    s_DMemAddr <= alu_alu_buf.F;
 
-    -- NOTE: store instructions do not actually extend any contents in RISC-V.
-    -- Since we are using word-addressable RAM, though, we need to zero-extend to the correct width to preserve unsigned value for storage.
-    s_DMemData <= std_logic_vector(resize(unsigned(s_RS2Data(7  downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.BYTE) else
-                  std_logic_vector(resize(unsigned(s_RS2Data(15 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.HALF) else
-                  std_logic_vector(resize(unsigned(s_RS2Data(31 downto 0)), s_DMemData'length)) when (s_LSWidth = work.RISCV_types.WORD) else
+
+    -- NOTE: store instructions do not sign-extend
+    s_DMemData <= std_logic_vector(resize(unsigned(alu_driver_buf.DS2(7  downto 0)), s_DMemData'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.BYTE) else
+                  std_logic_vector(resize(unsigned(alu_driver_buf.DS2(15 downto 0)), s_DMemData'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.HALF) else
+                  std_logic_vector(resize(unsigned(alu_driver_buf.DS2(31 downto 0)), s_DMemData'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.WORD) else
                   (others => '0');
 
-    s_DMemDataExtended <= std_logic_vector(resize(unsigned(s_DMemOut(7  downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.BYTE and s_SignExtend = '0') else
-                          std_logic_vector(resize(  signed(s_DMemOut(7  downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.BYTE and s_SignExtend = '1') else
-                          std_logic_vector(resize(unsigned(s_DMemOut(15 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.HALF and s_SignExtend = '0') else
-                          std_logic_vector(resize(  signed(s_DMemOut(15 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.HALF and s_SignExtend = '1') else
-                          std_logic_vector(resize(unsigned(s_DMemOut(31 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.WORD and s_SignExtend = '0') else
-                          std_logic_vector(resize(  signed(s_DMemOut(31 downto 0)), s_DMemDataExtended'length)) when (s_LSWidth = work.RISCV_types.WORD and s_SignExtend = '1') else
-                          (others => '0');
+    s_DMemOutExtended <= std_logic_vector(resize(unsigned(mem_mem_buf.Data(7  downto 0)), s_DMemOutExtended'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.BYTE and alu_driver_buf.SignExtend = '0') else
+                         std_logic_vector(resize(  signed(mem_mem_buf.Data(7  downto 0)), s_DMemOutExtended'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.BYTE and alu_driver_buf.SignExtend = '1') else
+                         std_logic_vector(resize(unsigned(mem_mem_buf.Data(15 downto 0)), s_DMemOutExtended'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.HALF and alu_driver_buf.SignExtend = '0') else
+                         std_logic_vector(resize(  signed(mem_mem_buf.Data(15 downto 0)), s_DMemOutExtended'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.HALF and alu_driver_buf.SignExtend = '1') else
+                         std_logic_vector(resize(unsigned(mem_mem_buf.Data(31 downto 0)), s_DMemOutExtended'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.WORD and alu_driver_buf.SignExtend = '0') else
+                         std_logic_vector(resize(  signed(mem_mem_buf.Data(31 downto 0)), s_DMemOutExtended'length)) when (alu_driver_buf.LSWidth = work.RISCV_types.WORD and alu_driver_buf.SignExtend = '1') else
+                         (others => '0');
 
-    s_RegWrData <= s_DMemDataExtended when (s_RFSrc = work.RISCV_types.FROM_RAM)    else 
-                   s_ALUResult        when (s_RFSrc = work.RISCV_types.FROM_ALU)    else 
-                   s_NextInstAddr     when (s_RFSrc = work.RISCV_types.FROM_NEXTIP) else
-                   s_Imm              when (s_RFSrc = work.RISCV_types.FROM_IMM)    else
-                   (others => '0');
+
+    -----------------------------------------------------
+    ---- Hardware Pipeline Scheduling
+    -----------------------------------------------------
+
+    -- FIXME: should it be alu_alu_raw or buf?
+    -- FIXME: what width to use for DMemData/extended to ensure that the correct value is read?
+    s_RealALUOperand1 <= alu_alu_buf.F when (s_ForwardALUToALUOperand1 = '1' and s_ForwardMemToALUOperand1 = '0') else
+                         mem_alu_buf.F when (s_ForwardALUToALUOperand1 = '0' and s_ForwardMemToALUOperand1 = '1') else
+                         s_ALUOperand1;
+
+    -- FIXME: should it be alu_alu_raw or buf?
+    -- FIXME: what width to use for DMemData/extended to ensure that the correct value is read?
+    s_RealALUOperand2 <= alu_alu_buf.F when (s_ForwardALUToALUOperand2 = '1' and s_ForwardMemToALUOperand2 = '0') else
+                         mem_alu_buf.F when (s_ForwardALUToALUOperand2 = '0' and s_ForwardMemToALUOperand2 = '1') else
+                         s_ALUOperand2;
+        
+
+    -- FIXME: maybe need to do some checking with RegWrite/MemWRite to distinguish loads and stores
+    s_DriverIsLoad <= '1' when (driver_driver_raw.LSWidth /= 0) else
+                      '0';
+
+    s_ALUIsLoad <= '1' when (alu_driver_raw.LSWidth /= 0) else
+                   '0';
+
+    HWCPU_HMU: entity work.hmu
+        port MAP(
+            i_InsnRS1      => driver_driver_raw.RS1,
+            i_InsnRS2      => driver_driver_raw.RS2,
+
+            i_DriverRS1    => driver_driver_buf.RS1,
+            i_DriverRS2    => driver_driver_buf.RS2,
+            i_DriverRD     => driver_driver_buf.RD,
+            i_DriverIsLoad => s_DriverIsLoad,
+
+            i_ALURD        => alu_driver_buf.RD,
+            i_ALUIsLoad    => s_ALUIsLoad,
+
+            -- TODO: are these raw or buf
+            i_BranchMode   => driver_driver_buf.BGUOp, --mem_driver_buf.BGUOp,
+            i_Branch       => s_Branch,
+            i_IsBranch     => driver_driver_buf.IsBranch, --mem_driver_buf.Isbranch,
+
+            o_Break        => s_IPBreak,
+            o_InsnFlush    => insn_Flush,
+            o_InsnStall    => insn_Stall,
+            o_DriverFlush  => driver_Flush,
+            o_DriverStall  => driver_Stall
+        );
+
+    process(iCLK)
+    begin
+        if rising_edge(iCLK) then
+            s_BranchDelayed <= s_Branch;
+        end if;
+    end process;
+
+    HWCPU_DFU: entity work.dfu
+        port MAP(
+            i_InsnRS1     => driver_driver_raw.RS1, -- FIXME:
+            i_InsnRS2     => driver_driver_raw.RS2, -- FIXME: how to connect this to insn
+
+            i_DriverRS1   => driver_driver_buf.RS1,
+            i_DriverRS2   => driver_driver_buf.RS2,
+
+            i_ALURD       => alu_driver_buf.RD,
+            i_ALURS1      => alu_driver_buf.RS1,
+            i_ALURS2      => alu_driver_buf.RS2,
+            i_ALURegWrite => alu_driver_buf.RegWrite,
+
+            i_MemRD       => mem_driver_buf.RD,
+            i_MemRS1      => mem_driver_buf.RS1,
+            i_MemRS2      => mem_driver_buf.RS2,
+            i_MemRegWrite => mem_driver_buf.RegWrite,
+
+            i_BranchMode   => driver_driver_buf.BGUOp,
+            i_Branch       => s_Branch,
+            i_IsBranch     => driver_driver_buf.Isbranch,
+
+            
+            o_ForwardALUToALUOperand1 => s_ForwardALUToALUOperand1,
+            o_ForwardALUToALUOperand2 => s_ForwardALUToALUOperand2,
+            o_ForwardMemToALUOperand1 => s_ForwardMemToALUOperand1,
+            o_ForwardMemToALUOperand2 => s_ForwardMemToALUOperand2,
+
+            -- TODO:
+            o_ForwardMemToDriverRS1   => s_ForwardMemToDriverRS1,
+            o_ForwardMemToDriverRS2   => s_ForwardMemToDriverRS2,
+            o_ForwardALUToDriverRS1   => s_ForwardALUToDriverRS1,
+            o_ForwardALUToDriverRS2   => s_ForwardALUToDriverRS2
+        );
+
+    -----------------------------------------------------
 
 end structure;
 

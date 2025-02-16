@@ -31,13 +31,12 @@ begin
 
     process(i_CLK, i_RST)
     begin
-        if i_RST = '1' or i_Flush = '1' then
+        if i_RST = '1' or (i_Flush = '1' and rising_edge(i_CLK)) then
             -- insert a NOP
             o_Signals.IPAddr   <= (others => '0');
             o_Signals.LinkAddr <= (others => '0');
             o_Signals.Insn     <= 32x"00000013";
         else
-            -- for hardware scheduled pipeline, this will hook up to the hazard detection logic
             if i_STALL = '0' and rising_edge(i_CLK) then
                 -- instruction register contents
                 o_Signals.IPAddr   <= i_Signals.IPAddr;

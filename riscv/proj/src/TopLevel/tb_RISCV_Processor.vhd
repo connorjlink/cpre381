@@ -4,8 +4,8 @@
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
--- tb_RISCV_Processor.vhd
--- DESCRIPTION: This file contains a testbench to verify the tb_RISCV_Processor.vhd module.
+-- tb_SW_RISCV_Processor.vhd
+-- DESCRIPTION: This file contains a testbench to verify the tb_SW_RISCV_Processor.vhd module.
 -------------------------------------------------------------------------
 
 library IEEE;
@@ -16,45 +16,49 @@ use std.env.all;                -- For hierarchical/external signals
 use std.textio.all;             -- For basic I/O
 use work.RISCV_types.all;
 
-entity tb_RISCV_Processor is
+entity tb_SW_RISCV_Processor is
 	generic(gCLK_HPER  : time := 10 ns;
      	    DATA_WIDTH : integer := 32);
-end tb_RISCV_Processor;
+end tb_SW_RISCV_Processor;
 
-architecture mixed of tb_RISCV_Processor is
+architecture mixed of tb_SW_RISCV_Processor is
+
+component RISCV_Processor is
+	generic(
+		N : integer := work.RISCV_types.DATA_WIDTH
+	);
+	port(
+		iCLK      : in  std_logic;
+		iRST      : in  std_logic;
+		iInstLd   : in  std_logic;
+		iInstAddr : in  std_logic_vector(N-1 downto 0);
+		iInstExt  : in  std_logic_vector(N-1 downto 0);
+		oALUOut   : out std_logic_vector(N-1 downto 0)
+	); 
+end component;
 
 -- Total clock period
 constant cCLK_PER : time := gCLK_HPER * 2;
 
--- Element under test
-component MIPS_Processor is
-    generic(
-        N : integer := work.RISCV_types.DATA_WIDTH
-    );
-    port(
-        iCLK      : in std_logic;
-        iRST      : in std_logic;
-        iInstLd   : in std_logic;
-        iInstAddr : in std_logic_vector(N-1 downto 0);
-        iInstExt  : in std_logic_vector(N-1 downto 0);
-        oALUOut   : out std_logic_vector(N-1 downto 0) -- TODO: Hook this up to the output of the ALU. It is important for synthesis that you have this output that can effectively be impacted by all other components so they are not optimized away.
-    ); 
-end component;
-
 -- Create helper signals
 signal CLK, reset : std_logic := '0';
+
+-- Create inputs signals
+signal iInstLd : std_logic := '0';
+signal iInstAddr, iInstExt, oALUOut : std_logic_vector(31 downto 0) := 32x"0";
+
 
 begin
 
 -- Instantiate the module under test
-DUT0: MIPS_Processor
+DUT0: RISCV_Processor
 	port MAP(
 		iCLK      => CLK,
-        iRST      => reset,
-		iInstLd   => '0',
-		iInstAddr => 32x"0",
-		iInstExt  => 32x"0",
-		oALUOut   => open
+		iRST      => reset,
+		iInstLd   => iInstLd,
+		iInstAddr => iInstAddr,
+		iInstExt  => iInstExt,
+		oALUOut   => oALUOut
 	);
 
 -- This process resets the sequential components of the design.
@@ -64,6 +68,7 @@ DUT0: MIPS_Processor
 P_RST: process
 begin
 	reset <= '1';
+	wait for gCLK_HPER*2;
 	wait for gCLK_HPER*2;
 	wait for gCLK_HPER/2; -- don't change inputs on clock edges
 	reset <= '0';
@@ -87,6 +92,8 @@ begin
 	wait for gCLK_HPER/2; -- don't change inputs on clock edges
     wait for gCLK_HPER * 2;
 
+    -- running loaded hex binary image
+    
 	wait;
 end process;
 

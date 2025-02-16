@@ -16,8 +16,6 @@ use work.RISCV_types.all;
 
 entity hmu is
     port(
-        i_MaskStall    : in  std_logic;
-
         i_InsnRS1      : in  std_logic_vector(4 downto 0);
         i_InsnRS2      : in  std_logic_vector(4 downto 0);
 
@@ -105,25 +103,19 @@ begin
               (i_ALUIsLoad    = '1' and (i_ALURD  = i_DriverRS1 or i_ALURD = i_DriverRS2)  and i_ALURD    /= 5x"0") then
             v_Break := '1';
             v_InsnStall := '1';
-            --v_DriverFlush := '1';
+            v_DriverFlush := '1';
             report "HAZARD DETECTED: load-use" severity note;
 
 
         -- TODO: is a generic catch-all branch taken case even needed
+        -- No extra dependencies, so branch is computed taken; bubble a NOP
         elsif i_Branch = '1' then
-            -- No extra dependencies, so branch is computed taken; bubble a NOP
+            v_Break := '1';
             v_InsnFlush := '1';
             report "NON-HAZARD BRANCH TAKEN" severity note;
             
         end if;
 
-        -- reset the stall signal once we have branched to start fetching new instructions
-        -- NOTE: this is taking place after setting the control signals to override anything else
-        -- if i_MaskStall = '1' then
-        --     v_Break := '0';
-        --     v_InsnFlush := '0';
-        --     report "PIPELINE STALL RESCINDED" severity note;
-        -- end if;
 
         o_Break       <= v_Break;
         o_InsnFlush   <= v_InsnFlush;
