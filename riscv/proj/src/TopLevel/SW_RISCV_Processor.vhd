@@ -397,14 +397,12 @@ begin
             o_RS2        => driver_driver_raw.RS2, 
             o_Imm        => driver_driver_raw.Imm,
             o_BranchMode => driver_driver_raw.BranchMode,
-            o_Break      => open, -- s_Halt,
+            o_Break      => s_Halt,
             o_IsBranch   => driver_driver_raw.IsBranch,
             o_IPStride   => driver_driver_raw.IPStride,
             o_SignExtend => driver_driver_raw.SignExtend,
             o_IPToALU    => driver_driver_raw.IPToALU
         );
-
-    s_Halt <= '0';
 
     -- FIXME: should it be alu_alu_raw or buf?
     -- FIXME: what width to use for DMemData/extended to ensure that the correct value is read? 

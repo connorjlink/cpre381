@@ -53,7 +53,6 @@ begin
 -- Instantiate the module under test
 DUT0: entity work.hmu
 	port MAP(
-        i_CLK          => CLK,
         i_MaskStall    => i_MaskStall,
         i_InsnRS1      => i_InsnRS1, 
         i_InsnRS2      => i_InsnRS2, 
