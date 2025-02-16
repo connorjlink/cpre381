@@ -16,6 +16,8 @@ use work.RISCV_types.all;
 
 entity hmu is
     port(
+        i_CLK          : in  std_logic;
+
         i_MaskStall    : in  std_logic;
 
         i_InsnRS1      : in  std_logic_vector(4 downto 0);
@@ -27,6 +29,7 @@ entity hmu is
         i_DriverIsLoad : in  std_logic; -- the instruction a load instruction (this could cause a read-after-write hazard)
 
         i_ALURD        : in  std_logic_vector(4 downto 0);
+        i_ALUIsLoad    : in  std_logic;
 
         i_BranchMode   : in  natural;
         i_Branch       : in  std_logic; -- indicate if the branch is taken or not (hooks to output of BGU)
@@ -48,10 +51,11 @@ architecture mixed of hmu is
 begin
     
     process(
+        i_CLK,
         i_InsnRS1,   i_InsnRS2,
+        i_BranchMode, i_Branch, i_IsBranch,
         i_DriverRS1, i_DriverRS2, i_DriverRD, i_DriverIsLoad,
-        i_ALURD,
-        i_BranchMode, i_Branch, i_IsBranch
+        i_ALURD, i_ALUIsLoad
     )
         variable v_Break : std_logic := '0';
 
@@ -62,57 +66,77 @@ begin
         variable v_DriverStall : std_logic := '0';
 
     begin
-        -- Detect jal/j, which doesn't rely on any external data to execute, but will need to clear the pipeline until the remaining instructions are committed
-        if i_BranchMode = work.RISCV_types.JAL_OR_BCC and i_IsBranch = '0' then
-            -- No extra dependencies, so branch is computed taken; bubble a NOP
-            v_InsnFlush := '1';
-        end if;
-
-        -- Detect jalr/jr, which relies on the source register for the branch target
-        if i_BranchMode = work.RISCV_types.JALR then
-            if (i_InsnRS1 = i_DriverRD and i_InsnRS1 /= 5x"0") or
-               (i_InsnRS2 = i_DriverRD and i_InsnRS2 /= 5x"0") then
-                v_Break := '1';
-                -- FIXME: also insn flush?
-                v_InsnStall := '1';
-                v_DriverFlush := '1';
-            end if;
-        end if;
-
-        -- Detect Bcc, which relies on two registers
-        if i_BranchMode = work.RISCV_types.JAL_OR_BCC and i_IsBranch = '1' then
-            if (i_InsnRS1 = i_DriverRD and i_InsnRS2 /= 5x"0") or
-               (i_InsnRS2 = i_DriverRD and i_InsnRS2 /= 5x"0") then
-                v_Break := '1';
-                -- FIXME: also insn flush?
-                v_InsnStall := '1';
-                v_DriverFlush := '1';
-            elsif i_Branch = '1' then
-                -- Branch has no unresolved dependencies and is computed taken; bubble a NOP
-                v_InsnFlush := '1';
-            end if;
-        end if;
-
-        -- Detect load-use hazard, which will require a NOP bubble to resolve
-        if i_DriverIsLoad = '1' and (i_DriverRS1 = i_ALURD or i_DriverRS2 = i_ALURD) then 
-            v_Break := '1';
-            -- FIXME: also insn flush?
-            v_InsnStall := '1';
-            v_DriverFlush := '1';
-        end if;
-
-        -- reset the stall signal once we have branched to start fetching new instructions
-        -- NOTE: this is taking place after setting the control signals to override anything else
-        if i_MaskStall = '1' then
+        -- was previosuly falling edge
+        --if rising_edge(i_CLK) then
             v_Break := '0';
-            report "PIPELINE STALL RESCINDED" severity note;
-        end if;
+            v_InsnFlush := '0';
+            v_InsnStall := '0';
+            v_DriverFlush := '0';
+            v_DriverStall := '0';
 
-        o_Break <= v_Break;
-        o_InsnFlush <= v_InsnFlush;
-        o_InsnStall <= v_InsnStall;
+
+            -- Detect jal/j, which doesn't rely on any external data to execute, but will need to clear the pipeline until the remaining instructions are committed
+            if i_BranchMode = work.RISCV_types.JAL_OR_BCC and i_IsBranch = '0' then
+                -- FIXME: 
+                v_Break := '1';
+                -- No extra dependencies, so branch is computed taken; bubble a NOP
+                v_InsnFlush := '1';
+                report "NON-HAZARD BRANCH DETECTED: jal" severity note;
+
+
+            -- Detect jalr/jr, which relies on the source register for the branch target
+            elsif (i_BranchMode = work.RISCV_types.JALR) or
+               (i_BranchMode = work.RISCV_types.JAL_OR_BCC and i_IsBranch = '1') then
+                -- if jr, then the link register x0, which will never cause a hazard
+                if (i_DriverRD = i_InsnRS1 and i_DriverRD /= 5x"0") or
+                   (i_DriverRD = i_InsnRS2 and i_DriverRD /= 5x"0") then
+                    v_Break := '1';
+                    -- FIXME: also insn flush?
+                    v_InsnStall := '1';
+                    v_DriverFlush := '1';
+                    report "HAZARD DETECTED: jalr/bcc" severity note;
+                else
+                    -- FIXME: 
+                    v_Break := '1';
+                    -- No extra dependencies, so branch is computed taken; bubble a NOP
+                    v_InsnFlush := '1';
+                    report "NON-HAZARD BRANCH DETECTED: jalr/bcc" severity note;
+                end if;
+
+
+            -- Detect load-use hazard, which will require a NOP bubble to resolve
+            -- if i_DriverIsLoad = '1' and (i_ALURD = i_DriverRS1 or i_ALURD = i_DriverRS2) then 
+            elsif (i_DriverIsLoad = '1' and (i_DriverRD = i_InsnRS1 or i_DriverRD = i_InsnRS2) and i_DriverRD /= 5x"0") or
+                  (i_ALUIsLoad    = '1' and (i_ALURD  = i_DriverRS1 or i_ALURD = i_DriverRS2)  and i_ALURD    /= 5x"0") then
+                v_Break := '1';
+                v_InsnStall := '1';
+                --v_DriverFlush := '1';
+                report "HAZARD DETECTED: load-use" severity note;
+
+
+            -- TODO: is a generic catch-all branch taken case even needed
+            elsif i_Branch = '1' then
+                -- No extra dependencies, so branch is computed taken; bubble a NOP
+                v_InsnFlush := '1';
+                report "NON-HAZARD BRANCH TAKEN" severity note;
+                
+            end if;
+
+            -- reset the stall signal once we have branched to start fetching new instructions
+            -- NOTE: this is taking place after setting the control signals to override anything else
+            -- if i_MaskStall = '1' then
+            --     v_Break := '0';
+            --     v_InsnFlush := '0';
+            --     report "PIPELINE STALL RESCINDED" severity note;
+            -- end if;
+        --end if;
+
+        o_Break       <= v_Break;
+        o_InsnFlush   <= v_InsnFlush;
+        o_InsnStall   <= v_InsnStall;
         o_DriverFlush <= v_DriverFlush;
         o_DriverStall <= v_DriverStall;
+
     end process;
 
 end mixed;

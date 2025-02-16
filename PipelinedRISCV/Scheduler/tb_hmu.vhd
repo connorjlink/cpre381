@@ -38,6 +38,7 @@ signal i_DriverRS2    : std_logic_vector(4 downto 0);
 signal i_DriverRD     : std_logic_vector(4 downto 0);
 signal i_DriverIsLoad : std_logic; -- the instruction a load instruction (this could cause a read-after-write hazard)
 signal i_ALURD        : std_logic_vector(4 downto 0);
+signal i_ALUIsLoad    : std_logic;   
 signal i_BranchMode   : natural;
 signal i_Branch       : std_logic; -- indicate if the branch is taken or not (hooks to output of BGU)
 signal i_IsBranch     : std_logic;
@@ -52,6 +53,7 @@ begin
 -- Instantiate the module under test
 DUT0: entity work.hmu
 	port MAP(
+        i_CLK          => CLK,
         i_MaskStall    => i_MaskStall,
         i_InsnRS1      => i_InsnRS1, 
         i_InsnRS2      => i_InsnRS2, 
@@ -60,6 +62,7 @@ DUT0: entity work.hmu
         i_DriverRD     => i_DriverRD, 
         i_DriverIsLoad => i_DriverIsLoad,
         i_ALURD        => i_ALURD, 
+        i_ALUIsLoad    => i_ALUIsLoad,
         i_BranchMode   => i_BranchMode, 
         i_Branch       => i_Branch, 
         i_IsBranch     => i_IsBranch, 

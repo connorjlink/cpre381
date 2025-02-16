@@ -184,7 +184,7 @@ begin
         variable v_LSWidth    : natural := 0;
         variable v_Imm        : std_logic_vector(31 downto 0);
         variable v_BranchMode : natural;
-        variable v_ipToALU    : std_logic;
+        variable v_IPToALU    : std_logic;
     begin 
         if i_RST = '0' then
             v_IsBranch   := '0';
@@ -192,13 +192,14 @@ begin
             v_nZeroSign  := '1'; -- default case is sign extension
             v_MemWrite   := '0';
             v_RegWrite   := '0';
-            v_RFSrc      := 0;
             v_ALUSrc     := '0';
+            v_RFSrc      := 0;
             v_ALUOp      := 0;
             v_BGUOp      := 0;
+            v_LSWidth    := 0;
             v_Imm        := 32x"0";
             v_BranchMode := 0;
-            v_ipToALU    := '0';
+            v_IPToALU    := '0';
 
             case s_decOpcode is 
                 when 7b"1101111" => -- J-Format
@@ -452,7 +453,7 @@ begin
                 when 7b"1100011" => -- B-Format
                     v_Imm := s_extbImm;
                     -- v_ALUSrc := '1';
-                    -- v_ipToALU := '1';
+                    -- v_IPToALU := '1';
                     v_BranchMode := work.RISCV_types.JAL_OR_BCC;
                     v_IsBranch := '1';
 
@@ -504,7 +505,7 @@ begin
                     v_Imm := s_extuImm;
                     v_RFSrc := work.RISCV_types.FROM_ALU;
                     v_ALUSrc := '1';
-                    v_ipToALU := '1';
+                    v_IPToALU := '1';
                     v_RegWrite := '1';
                     report "auipc" severity note;
 
@@ -539,7 +540,7 @@ begin
             v_LSWidth    := 0;
             v_Imm        := 32x"0";
             v_BranchMode := 0;
-            v_ipToALU    := '0';
+            v_IPToALU    := '0';
         end if;
 
         o_IsBranch   <= v_IsBranch;
@@ -554,7 +555,7 @@ begin
         o_LSWidth    <= v_LSWidth;   
         o_Imm        <= v_Imm;  
         o_BranchMode <= v_BranchMode;   
-        o_ipToALU    <= v_ipToALU; 
+        o_ipToALU    <= v_IPToALU; 
     end process;
 
 end mixed;

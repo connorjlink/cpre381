@@ -14,13 +14,13 @@ set NumericStdNoWarnings 1
 run 0 ps
 set NumericStdNoWarnings 0
 
-#mem load -infile ../test/fibonacci/program.hex -format hex /tb_SW_RISCV_Processor/DUT0/IMem
-mem load -infile ../test/fibonacci_sw/program.hex -format hex /tb_SW_RISCV_Processor/DUT0/IMem
+#mem load -infile ../test/powers_of_two/program.hex -format hex /tb_SW_RISCV_Processor/DUT0/IMem
+mem load -infile ../test/fibonacci/program.hex -format hex /tb_SW_RISCV_Processor/DUT0/IMem
+#mem load -infile ../test/fibonacci_sw/program.hex -format hex /tb_SW_RISCV_Processor/DUT0/IMem
 mem load -infile ../test/zero.hex -format hex /tb_SW_RISCV_Processor/DUT0/SWCPU_RegisterFile/s_Rx
 
 add wave -noupdate -divider {Standard Inputs}
 add wave -noupdate -label CLK /tb_SW_RISCV_Processor/CLK
-add wave -noupdate -label CLK /tb_SW_RISCV_Processor/DUT0/s_gCLK
 add wave -noupdate -label reset /tb_SW_RISCV_Processor/reset
 
 add wave -noupdate -divider {Data Input/Outputs}

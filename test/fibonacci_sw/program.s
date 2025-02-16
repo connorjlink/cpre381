@@ -12,6 +12,10 @@ loop:
     nop
     nop
     addi x7, x7, 4
+    nop
+    nop
+    nop
+    nop
     add x10, x5, x6
     nop
     nop
@@ -23,6 +27,10 @@ loop:
     nop
     nop
     add x6, x0, x10
+    nop
+    nop
+    nop
+    nop
     addi x11, x11, -1
     nop
     nop
