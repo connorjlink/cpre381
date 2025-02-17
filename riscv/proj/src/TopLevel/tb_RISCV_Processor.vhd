@@ -4,8 +4,8 @@
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
--- tb_SW_RISCV_Processor.vhd
--- DESCRIPTION: This file contains a testbench to verify the tb_SW_RISCV_Processor.vhd module.
+-- tb_RISCV_Processor.vhd
+-- DESCRIPTION: This file contains a testbench to verify the RISCV_Processor.vhd module.
 -------------------------------------------------------------------------
 
 library IEEE;
@@ -16,12 +16,12 @@ use std.env.all;                -- For hierarchical/external signals
 use std.textio.all;             -- For basic I/O
 use work.RISCV_types.all;
 
-entity tb_SW_RISCV_Processor is
+entity tb_RISCV_Processor is
 	generic(gCLK_HPER  : time := 10 ns;
      	    DATA_WIDTH : integer := 32);
-end tb_SW_RISCV_Processor;
+end tb_RISCV_Processor;
 
-architecture mixed of tb_SW_RISCV_Processor is
+architecture mixed of tb_RISCV_Processor is
 
 component RISCV_Processor is
 	generic(

@@ -74,6 +74,7 @@ begin
             v_Break := '1';
             -- No extra dependencies, so branch is computed taken; bubble a NOP
             v_InsnFlush := '1';
+            v_DriverFlush := '1';
             report "NON-HAZARD BRANCH DETECTED: jal" severity note;
 
 
@@ -93,6 +94,8 @@ begin
                 v_Break := '1';
                 -- No extra dependencies, so branch is computed taken; bubble a NOP
                 v_InsnFlush := '1';
+                v_DriverFlush := '1';
+
                 report "NON-HAZARD BRANCH DETECTED: jalr/bcc" severity note;
             end if;
 
@@ -112,6 +115,8 @@ begin
         elsif i_Branch = '1' then
             v_Break := '1';
             v_InsnFlush := '1';
+            v_DriverFlush := '1';
+
             report "NON-HAZARD BRANCH TAKEN" severity note;
             
         end if;

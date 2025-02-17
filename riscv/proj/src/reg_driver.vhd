@@ -31,7 +31,7 @@ begin
 
     process(i_CLK, i_RST)
     begin
-        if i_RST = '1' or (i_Flush = '1'  and rising_edge(i_CLK)) then
+        if i_RST = '1' or (i_Flush = '1'  and falling_edge(i_CLK)) then
             -- insert a NOP
             o_Signals.MemWrite   <= '0';
             o_Signals.RegWrite   <= '0';
